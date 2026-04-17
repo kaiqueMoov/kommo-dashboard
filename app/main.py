@@ -6,7 +6,12 @@ from sqlalchemy import text
 
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.kommo import router as kommo_router
-from app.core.database import SessionLocal
+from app.core.database import SessionLocal, engine
+from app.models.base import Base
+
+import app.models
+from app.models.user import User
+from app.models.lead import Lead
 
 app = FastAPI(title="Kommo Dashboard API")
 
@@ -24,6 +29,15 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+@app.on_event("startup")
+def on_startup():
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Tabelas verificadas/criadas com sucesso.")
+    except Exception as e:
+        print(f"Erro ao criar tabelas: {e}")
 
 
 @app.get("/")

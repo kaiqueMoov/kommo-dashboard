@@ -29,14 +29,6 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
-@app.on_event("startup")
-def on_startup():
-    try:
-        Base.metadata.create_all(bind=engine)
-        print("Tabelas verificadas/criadas com sucesso.")
-    except Exception as e:
-        print(f"Erro ao criar tabelas: {e}")
-
 
 @app.get("/")
 def root():
@@ -46,6 +38,14 @@ def root():
         "health": "/health",
         "app": "/app",
     }
+
+@app.on_event("startup")
+def on_startup():
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Tabelas verificadas/criadas com sucesso.")
+    except Exception as e:
+        print(f"Erro ao criar tabelas: {e}")
 
 
 @app.get("/health")

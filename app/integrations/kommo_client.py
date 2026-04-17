@@ -43,10 +43,7 @@ class KommoClient:
     async def get_users(self, page: int = 1, limit: int = 250) -> dict:
         return await self._get(
             "/api/v4/users",
-            params={
-                "page": page,
-                "limit": limit,
-            },
+            params={"page": page, "limit": limit},
         )
 
     async def get_leads(

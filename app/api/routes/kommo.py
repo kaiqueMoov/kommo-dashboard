@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -10,17 +10,8 @@ from app.core.lead_rules import LOST_STATUS_IDS, SQL_STATUS_IDS, WON_STATUS_IDS
 from app.integrations.kommo_client import KommoClient
 from app.models.lead import Lead
 from app.models.user import User
-from fastapi import HTTPException
 
 router = APIRouter()
-
-CAMPAIGN_FIELD_IDS: tuple[int, ...] = (1290964,)
-CAR_FIELD_IDS: tuple[int, ...] = (1290950,)
-LEAD_SOURCE_FIELD_IDS: tuple[int, ...] = (1290962,)
-
-
-def start_of_current_year_ts() -> int:
-    return int(datetime(2026, 1, 1, 0, 0, 0).timestamp())
 
 
 def get_custom_field_value(custom_fields: list[dict] | None, *field_names: str) -> str | None:
@@ -32,24 +23,6 @@ def get_custom_field_value(custom_fields: list[dict] | None, *field_names: str) 
     for field in custom_fields:
         current_name = (field.get("field_name") or field.get("name") or "").strip().lower()
         if current_name in normalized_names:
-            values = field.get("values", [])
-            if values:
-                first = values[0]
-                if isinstance(first, dict):
-                    return first.get("value")
-                return str(first)
-    return None
-
-
-def get_custom_field_value_by_id(custom_fields: list[dict] | None, *field_ids: int) -> str | None:
-    if not custom_fields or not field_ids:
-        return None
-
-    valid_ids = {int(field_id) for field_id in field_ids}
-
-    for field in custom_fields:
-        current_id = field.get("field_id") or field.get("id")
-        if current_id in valid_ids:
             values = field.get("values", [])
             if values:
                 first = values[0]
@@ -71,13 +44,9 @@ def extract_car_from_tags(tag_names: list[str]) -> str | None:
         "tera",
         "kicks",
         "boreal",
-        "haval h6 hev2",
         "haval",
-        "hilux std cd",
         "hilux",
-        "volvo ex30 ultra",
         "volvo",
-        "bmw x1 m sport",
         "bmw x1",
         "compass",
         "renegade",
@@ -104,10 +73,8 @@ def extract_campaign_from_name(name: str | None) -> str | None:
 
     if lowered.startswith("facebook"):
         return name.strip()
-
     if lowered.startswith("instagram"):
         return name.strip()
-
     if lowered.startswith("google"):
         return name.strip()
 
@@ -130,8 +97,7 @@ def apply_lead_data(lead: Lead, item: dict) -> None:
     lead.responsible_user_id = item.get("responsible_user_id")
 
     lead.car_name = (
-        get_custom_field_value_by_id(custom_fields, *CAR_FIELD_IDS)
-        or get_custom_field_value(
+        get_custom_field_value(
             custom_fields,
             "carro_interesse",
             "carro",
@@ -144,8 +110,7 @@ def apply_lead_data(lead: Lead, item: dict) -> None:
     )
 
     lead.campaign_name = (
-        get_custom_field_value_by_id(custom_fields, *CAMPAIGN_FIELD_IDS)
-        or get_custom_field_value(
+        get_custom_field_value(
             custom_fields,
             "nome_campanha",
             "campanha",
@@ -155,22 +120,17 @@ def apply_lead_data(lead: Lead, item: dict) -> None:
         or extract_campaign_from_name(item.get("name"))
     )
 
-    lead.lead_source = (
-        get_custom_field_value_by_id(custom_fields, *LEAD_SOURCE_FIELD_IDS)
-        or get_custom_field_value(
-            custom_fields,
-            "origem_captacao",
-            "origem",
-            "origem da captação",
-            "origem do lead",
-            "origem do lead?",
-            "source",
-        )
+    lead.lead_source = get_custom_field_value(
+        custom_fields,
+        "origem_captacao",
+        "origem",
+        "origem da captação",
+        "origem do lead",
+        "source",
     )
 
     if not lead.lead_source and lead.name:
         lead_name_lower = lead.name.lower()
-
         if lead_name_lower.startswith("facebook"):
             lead.lead_source = "Facebook"
         elif lead_name_lower.startswith("instagram"):
@@ -178,35 +138,11 @@ def apply_lead_data(lead: Lead, item: dict) -> None:
         elif lead_name_lower.startswith("google"):
             lead.lead_source = "Google"
 
-    lead.utm_source = get_custom_field_value(
-        custom_fields,
-        "UTM_SOURCE",
-        "utm_source",
-    )
-
-    lead.utm_medium = get_custom_field_value(
-        custom_fields,
-        "UTM_MEDIUM",
-        "utm_medium",
-    )
-
-    lead.utm_campaign = get_custom_field_value(
-        custom_fields,
-        "UTM_CAMPAIGN",
-        "utm_campaign",
-    )
-
-    lead.utm_content = get_custom_field_value(
-        custom_fields,
-        "UTM_CONTENT",
-        "utm_content",
-    )
-
-    lead.utm_term = get_custom_field_value(
-        custom_fields,
-        "UTM_TERM",
-        "utm_term",
-    )
+    lead.utm_source = get_custom_field_value(custom_fields, "UTM_SOURCE", "utm_source")
+    lead.utm_medium = get_custom_field_value(custom_fields, "UTM_MEDIUM", "utm_medium")
+    lead.utm_campaign = get_custom_field_value(custom_fields, "UTM_CAMPAIGN", "utm_campaign")
+    lead.utm_content = get_custom_field_value(custom_fields, "UTM_CONTENT", "utm_content")
+    lead.utm_term = get_custom_field_value(custom_fields, "UTM_TERM", "utm_term")
 
     lead.created_at_kommo = ts_to_dt(item.get("created_at") or item.get("date_create"))
     lead.updated_at_kommo = ts_to_dt(item.get("updated_at") or item.get("last_modified"))
@@ -215,22 +151,17 @@ def apply_lead_data(lead: Lead, item: dict) -> None:
         lead.sql_at = ts_to_dt(item.get("updated_at") or item.get("last_modified"))
 
     if lead.kommo_status_id in WON_STATUS_IDS and not lead.won_at:
-        lead.won_at = ts_to_dt(
-            item.get("closed_at") or item.get("updated_at") or item.get("last_modified")
-        )
+        lead.won_at = ts_to_dt(item.get("closed_at") or item.get("updated_at") or item.get("last_modified"))
 
     if lead.kommo_status_id in LOST_STATUS_IDS and not lead.lost_at:
-        lead.lost_at = ts_to_dt(
-            item.get("closed_at") or item.get("updated_at") or item.get("last_modified")
-        )
+        lead.lost_at = ts_to_dt(item.get("closed_at") or item.get("updated_at") or item.get("last_modified"))
 
 
 async def sync_single_lead(db: Session, client: KommoClient, lead_id: int) -> dict:
     data = await client.get_lead_by_id(lead_id)
 
-    
     if "status_code" in data:
-        raise HTTPException(status_code=502, detail=data)
+        return data
 
     lead = db.get(Lead, data["id"])
     if not lead:
@@ -259,17 +190,7 @@ def extract_lead_ids_from_form(encoded_form: str) -> list[int]:
 @router.get("/debug/leads")
 async def debug_leads():
     client = KommoClient()
-    return await client.get_leads(
-        page=1,
-        limit=20,
-        created_from=start_of_current_year_ts(),
-    )
-
-
-@router.get("/debug/custom-fields/leads")
-async def debug_lead_custom_fields():
-    client = KommoClient()
-    return await client.get_lead_custom_fields(page=1, limit=250)
+    return await client.get_leads(page=1, limit=20)
 
 
 @router.get("/test")
@@ -284,7 +205,7 @@ async def sync_users(db: Session = Depends(get_db)):
     data = await client.get_users(page=1, limit=250)
 
     if "status_code" in data:
-        return data
+        raise HTTPException(status_code=502, detail=data)
 
     users_data = data.get("_embedded", {}).get("users", [])
     total_saved = 0
@@ -326,17 +247,12 @@ async def sync_leads(db: Session = Depends(get_db)):
     total_found = 0
     page = 1
     limit = 250
-    cutoff_ts = start_of_current_year_ts()
 
     while True:
-        data = await client.get_leads(
-            page=page,
-            limit=limit,
-            created_from=cutoff_ts,
-        )
+        data = await client.get_leads(page=page, limit=limit)
 
         if "status_code" in data:
-            return data
+            raise HTTPException(status_code=502, detail=data)
 
         leads_data = data.get("_embedded", {}).get("leads", []) or []
 
@@ -367,7 +283,6 @@ async def sync_leads(db: Session = Depends(get_db)):
         "leads_found": total_found,
         "leads_saved": total_saved,
         "pages_processed": page,
-        "cutoff_timestamp": cutoff_ts,
     }
 
 
@@ -402,30 +317,4 @@ async def kommo_webhooks(request: Request, db: Session = Depends(get_db)):
         "synced_count": len(synced),
         "synced": synced,
         "errors": errors,
-    }
-
-
-@router.get("/debug/lead/{lead_id}")
-async def debug_lead(lead_id: int):
-    client = KommoClient()
-    return await client.get_lead_by_id(lead_id)
-
-
-@router.get("/debug/lead/{lead_id}/parsed")
-async def debug_lead_parsed(lead_id: int):
-    client = KommoClient()
-    data = await client.get_lead_by_id(lead_id)
-
-    if "status_code" in data:
-        return data
-
-    return {
-        "id": data.get("id"),
-        "name": data.get("name"),
-        "pipeline_id": data.get("pipeline_id"),
-        "status_id": data.get("status_id"),
-        "responsible_user_id": data.get("responsible_user_id"),
-        "custom_fields_values": data.get("custom_fields_values"),
-        "tags": data.get("_embedded", {}).get("tags", []),
-        "contacts": data.get("_embedded", {}).get("contacts", []),
     }

@@ -1,152 +1,10 @@
-let selectedSellerIds = new Set();
-let selectedCampaignNames = new Set();
-let selectedCarNames = new Set();
-
-const CURRENT_YEAR_START = "2026-01-01";
-
-function getSelectedSellerIds() {
-  return Array.from(selectedSellerIds);
-}
-
-function getSelectedCampaignNames() {
-  return Array.from(selectedCampaignNames);
-}
-
-function getSelectedCarNames() {
-  return Array.from(selectedCarNames);
-}
-
-function getSearchValue() {
-  return document.getElementById("searchInput").value.trim();
-}
-
-function setDefaultDates() {
-  const startInput = document.getElementById("start");
-  const endInput = document.getElementById("end");
-
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-
-  if (!startInput.value) {
-    startInput.value = CURRENT_YEAR_START;
-  }
-
-  if (!endInput.value) {
-    endInput.value = today;
-  }
-}
-
-function updateSelectionInfo(elementId, selectedCount, singular, plural, emptyText) {
-  const info = document.getElementById(elementId);
-
-  if (selectedCount === 0) {
-    info.textContent = emptyText;
-    return;
-  }
-
-  if (selectedCount === 1) {
-    info.textContent = `1 ${singular} selecionado`;
-    return;
-  }
-
-  info.textContent = `${selectedCount} ${plural} selecionados`;
-}
-
-function toggleSelection(setRef, value) {
-  const normalizedValue = String(value);
-
-  if (setRef.has(normalizedValue)) {
-    setRef.delete(normalizedValue);
-  } else {
-    setRef.add(normalizedValue);
-  }
-}
-
-function toggleSellerSelection(sellerId) {
-  toggleSelection(selectedSellerIds, sellerId);
-  updateSellerListUI();
-  updateAllSelectionInfos();
-}
-
-function toggleCampaignSelection(campaignName) {
-  toggleSelection(selectedCampaignNames, campaignName);
-  updateCampaignListUI();
-  updateAllSelectionInfos();
-}
-
-function toggleCarSelection(carName) {
-  toggleSelection(selectedCarNames, carName);
-  updateCarListUI();
-  updateAllSelectionInfos();
-}
-
-function updateAllSelectionInfos() {
-  updateSelectionInfo(
-    "sellerSelectionInfo",
-    getSelectedSellerIds().length,
-    "vendedor",
-    "vendedores",
-    "Nenhum vendedor selecionado"
-  );
-
-  updateSelectionInfo(
-    "campaignSelectionInfo",
-    getSelectedCampaignNames().length,
-    "campanha",
-    "campanhas",
-    "Nenhuma campanha selecionada"
-  );
-
-  updateSelectionInfo(
-    "carSelectionInfo",
-    getSelectedCarNames().length,
-    "carro",
-    "carros",
-    "Nenhum carro selecionado"
-  );
-}
-
-function updateOptionUI(selectorClass, setRef) {
-  document.querySelectorAll(selectorClass).forEach((item) => {
-    const optionValue = item.dataset.optionValue;
-    const isSelected = setRef.has(String(optionValue));
-
-    item.classList.toggle("is-selected", isSelected);
-
-    const dot = item.querySelector(".seller-dot");
-    if (dot) {
-      dot.classList.toggle("is-selected", isSelected);
-    }
-  });
-}
-
-function updateSellerListUI() {
-  updateOptionUI(".seller-option", selectedSellerIds);
-}
-
-function updateCampaignListUI() {
-  updateOptionUI(".campaign-option", selectedCampaignNames);
-}
-
-function updateCarListUI() {
-  updateOptionUI(".car-option", selectedCarNames);
-}
-
 function buildQuery() {
   const start = document.getElementById("start").value;
   const end = document.getElementById("end").value;
 
-  const sellerIds = getSelectedSellerIds();
-  const campaignNames = getSelectedCampaignNames();
-  const carNames = getSelectedCarNames();
-  const search = getSearchValue();
-
   const params = new URLSearchParams();
 
-  if (start) {
-    params.append("start", start);
-  }
-
+  if (start) params.append("start", start);
   if (end) {
     const endDate = new Date(end);
     endDate.setDate(endDate.getDate() + 1);
@@ -154,51 +12,15 @@ function buildQuery() {
     params.append("end", adjustedEnd);
   }
 
-  if (search) {
-    params.append("search", search);
-  }
-
-  sellerIds.forEach((sellerId) => {
-    params.append("seller_ids", sellerId);
-  });
-
-  campaignNames.forEach((campaignName) => {
-    params.append("campaign_names", campaignName);
-  });
-
-  carNames.forEach((carName) => {
-    params.append("car_names", carName);
-  });
-
   const query = params.toString();
   return query ? `?${query}` : "";
 }
 
-function buildCurrentYearQuery() {
-  const params = new URLSearchParams();
-  params.append("start", CURRENT_YEAR_START);
-
-  const search = getSearchValue();
-  const sellerIds = getSelectedSellerIds();
-
-  if (search) {
-    params.append("search", search);
-  }
-
-  sellerIds.forEach((sellerId) => {
-    params.append("seller_ids", sellerId);
-  });
-
-  return `?${params.toString()}`;
-}
-
 async function fetchJson(url) {
   const response = await fetch(url);
-
   if (!response.ok) {
     throw new Error(`Erro ao carregar ${url}`);
   }
-
   return response.json();
 }
 
@@ -265,78 +87,6 @@ function renderLeads(rows) {
   });
 }
 
-function renderOptionList(containerId, rows, optionClass, valueKey, labelKey, selectedSet, clickHandler, skipValues = []) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = "";
-
-  rows.forEach((row) => {
-    const rawValue = row[valueKey];
-    const label = row[labelKey];
-
-    if (!rawValue) return;
-    if (skipValues.includes(label)) return;
-
-    const option = document.createElement("button");
-    option.type = "button";
-    option.className = optionClass;
-    option.dataset.optionValue = String(rawValue);
-
-    option.innerHTML = `
-      <span class="seller-dot"></span>
-      <span class="seller-name">${label}</span>
-    `;
-
-    option.addEventListener("click", () => clickHandler(rawValue));
-    container.appendChild(option);
-  });
-
-  updateOptionUI(`.${optionClass}`, selectedSet);
-}
-
-async function loadSellerOptions() {
-  const query = buildCurrentYearQuery();
-  const sellers = await fetchJson(`/dashboard/sellers${query}`);
-  renderOptionList(
-    "sellerList",
-    sellers,
-    "seller-option",
-    "seller_id",
-    "seller_name",
-    selectedSellerIds,
-    toggleSellerSelection
-  );
-}
-
-async function loadCampaignOptions() {
-  const query = buildCurrentYearQuery();
-  const campaigns = await fetchJson(`/dashboard/campaigns${query}`);
-  renderOptionList(
-    "campaignList",
-    campaigns,
-    "campaign-option",
-    "campaign_name",
-    "campaign_name",
-    selectedCampaignNames,
-    toggleCampaignSelection,
-    ["Sem campanha"]
-  );
-}
-
-async function loadCarOptions() {
-  const query = buildCurrentYearQuery();
-  const cars = await fetchJson(`/dashboard/cars${query}`);
-  renderOptionList(
-    "carList",
-    cars,
-    "car-option",
-    "car_name",
-    "car_name",
-    selectedCarNames,
-    toggleCarSelection,
-    ["Sem carro"]
-  );
-}
-
 async function loadDashboard() {
   const query = buildQuery();
 
@@ -358,50 +108,6 @@ async function loadDashboard() {
   }
 }
 
-async function refreshFilterLists() {
-  await Promise.all([
-    loadSellerOptions(),
-    loadCampaignOptions(),
-    loadCarOptions(),
-  ]);
-  updateAllSelectionInfos();
-}
+document.getElementById("applyFilters").addEventListener("click", loadDashboard);
 
-document.getElementById("applyFilters").addEventListener("click", async () => {
-  await refreshFilterLists();
-  await loadDashboard();
-});
-
-document.getElementById("searchInput").addEventListener("keydown", async (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    await refreshFilterLists();
-    await loadDashboard();
-  }
-});
-
-document.getElementById("clearSellers").addEventListener("click", () => {
-  selectedSellerIds.clear();
-  updateSellerListUI();
-  updateAllSelectionInfos();
-});
-
-document.getElementById("clearCampaigns").addEventListener("click", () => {
-  selectedCampaignNames.clear();
-  updateCampaignListUI();
-  updateAllSelectionInfos();
-});
-
-document.getElementById("clearCars").addEventListener("click", () => {
-  selectedCarNames.clear();
-  updateCarListUI();
-  updateAllSelectionInfos();
-});
-
-async function initDashboard() {
-  setDefaultDates();
-  await refreshFilterLists();
-  await loadDashboard();
-}
-
-initDashboard();
+loadDashboard();

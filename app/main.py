@@ -10,6 +10,7 @@ from app.core.database import SessionLocal, engine
 from app.models.base import Base
 from app.models.user import User
 from app.models.lead import Lead
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Kommo Dashboard API")
 
@@ -26,6 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 

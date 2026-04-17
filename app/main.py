@@ -8,8 +8,6 @@ from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.kommo import router as kommo_router
 from app.core.database import SessionLocal, engine
 from app.models.base import Base
-
-import app.models
 from app.models.user import User
 from app.models.lead import Lead
 

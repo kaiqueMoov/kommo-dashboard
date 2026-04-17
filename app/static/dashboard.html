@@ -7,252 +7,149 @@
   <link rel="stylesheet" href="/static/dashboard.css" />
 </head>
 <body>
-  <div class="page-shell">
-    <div class="page-bg"></div>
+  <div class="container">
+    <header class="header">
+      <h1>Kommo Dashboard</h1>
+      <p>Visão geral de leads, funil e vendedores</p>
+    </header>
 
-    <main class="container">
-      <header class="hero">
-        <div class="hero-content">
-          <div class="hero-badge">Painel de Controle</div>
-          <h1>Kommo Dashboard</h1>
-          <p class="hero-subtitle">
-            Acompanhe leads, desempenho comercial, campanhas, veículos de interesse
-            e evolução do funil em uma visão clara, organizada e profissional.
-          </p>
-        </div>
-      </header>
-
-      <section class="panel panel-intro">
-        <div class="section-header">
-          <div>
-            <h2>Como usar este painel</h2>
-            <p class="section-description">
-              Utilize os filtros abaixo para localizar rapidamente vendedores, campanhas,
-              carros e leads específicos. Os indicadores e tabelas serão atualizados de acordo
-              com os critérios escolhidos.
-            </p>
+    <section class="filters filters-grid">
+      <div class="filter-row-top">
+        <div class="filter-group search-group">
+          <label for="searchInput">Busca</label>
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Pesquisar por nome, campanha, carro, origem..."
+            />
           </div>
         </div>
 
-        <div class="intro-grid">
-          <div class="intro-card">
-            <h3>Busca inteligente</h3>
-            <p>Pesquise por nome do lead, campanha, carro ou origem de captação.</p>
-          </div>
-
-          <div class="intro-card">
-            <h3>Filtro por período</h3>
-            <p>Defina data inicial e final para analisar apenas o recorte desejado.</p>
-          </div>
-
-          <div class="intro-card">
-            <h3>Seleção múltipla</h3>
-            <p>Escolha vários vendedores, campanhas e carros ao mesmo tempo.</p>
-          </div>
-
-          <div class="intro-card">
-            <h3>Visão de performance</h3>
-            <p>Compare resultados por vendedor, origem e distribuição dos leads recentes.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel filters-panel">
-        <div class="section-header">
-          <div>
-            <h2>Filtros do painel</h2>
-            <p class="section-description">
-              Ajuste os filtros para refinar a análise e visualizar exatamente o que precisa.
-            </p>
-          </div>
+        <div class="filter-group">
+          <label for="start">Data inicial</label>
+          <input type="date" id="start" />
         </div>
 
-        <div class="filters-grid">
-          <div class="filter-row-top">
-            <div class="filter-group search-group">
-              <label for="searchInput">Busca geral</label>
-              <div class="search-box">
-                <span class="search-icon">⌕</span>
-                <input
-                  type="text"
-                  id="searchInput"
-                  placeholder="Pesquisar por nome, campanha, carro ou origem"
-                />
-              </div>
-              <small>Use a busca para localizar rapidamente registros específicos.</small>
-            </div>
+        <div class="filter-group">
+          <label for="end">Data final</label>
+          <input type="date" id="end" />
+        </div>
 
-            <div class="filter-group">
-              <label for="start">Data inicial</label>
-              <input type="date" id="start" />
-              <small>Define o início do período analisado.</small>
-            </div>
+        <div class="filter-actions">
+          <button id="applyFilters">Aplicar filtros</button>
+        </div>
+      </div>
 
-            <div class="filter-group">
-              <label for="end">Data final</label>
-              <input type="date" id="end" />
-              <small>Define o fim do período analisado.</small>
-            </div>
-
-            <div class="filter-actions">
-              <button id="applyFilters">Aplicar filtros</button>
-              <small>Atualiza os indicadores e tabelas do painel.</small>
-            </div>
+      <div class="filter-columns">
+        <div class="filter-group filter-panel">
+          <div class="filter-panel-header">
+            <label>Vendedores</label>
+            <button type="button" class="mini-clear-btn" id="clearSellers">Limpar</button>
           </div>
+          <div id="sellerList" class="seller-list"></div>
+          <small id="sellerSelectionInfo">Nenhum vendedor selecionado</small>
+        </div>
 
-          <div class="filter-columns">
-            <div class="filter-group filter-panel">
-              <div class="filter-panel-header">
-                <div>
-                  <label>Vendedores</label>
-                  <p>Filtra os resultados pelos responsáveis selecionados.</p>
-                </div>
-                <button type="button" class="mini-clear-btn" id="clearSellers">Limpar</button>
-              </div>
-              <div id="sellerList" class="seller-list"></div>
-              <small id="sellerSelectionInfo">Nenhum vendedor selecionado</small>
-            </div>
-
-            <div class="filter-group filter-panel">
-              <div class="filter-panel-header">
-                <div>
-                  <label>Campanhas</label>
-                  <p>Mostra somente campanhas específicas escolhidas por você.</p>
-                </div>
-                <button type="button" class="mini-clear-btn" id="clearCampaigns">Limpar</button>
-              </div>
-              <div id="campaignList" class="seller-list"></div>
-              <small id="campaignSelectionInfo">Nenhuma campanha selecionada</small>
-            </div>
-
-            <div class="filter-group filter-panel">
-              <div class="filter-panel-header">
-                <div>
-                  <label>Carros</label>
-                  <p>Permite visualizar apenas os veículos de interesse desejados.</p>
-                </div>
-                <button type="button" class="mini-clear-btn" id="clearCars">Limpar</button>
-              </div>
-              <div id="carList" class="seller-list"></div>
-              <small id="carSelectionInfo">Nenhum carro selecionado</small>
-            </div>
+        <div class="filter-group filter-panel">
+          <div class="filter-panel-header">
+            <label>Campanhas</label>
+            <button type="button" class="mini-clear-btn" id="clearCampaigns">Limpar</button>
           </div>
-        </div>
-      </section>
-
-      <section class="cards" id="summaryCards">
-        <div class="card">
-          <span>Total de Leads</span>
-          <strong id="cardTotal">0</strong>
-          <small>Quantidade total de leads no período filtrado.</small>
+          <div id="campaignList" class="seller-list"></div>
+          <small id="campaignSelectionInfo">Nenhuma campanha selecionada</small>
         </div>
 
-        <div class="card">
-          <span>Respondeu 1ª mensagem</span>
-          <strong id="cardReplied">0</strong>
-          <small>Leads que já tiveram interação inicial registrada.</small>
-        </div>
-
-        <div class="card">
-          <span>SQL</span>
-          <strong id="cardSql">0</strong>
-          <small>Leads qualificados comercialmente para avanço no funil.</small>
-        </div>
-
-        <div class="card">
-          <span>Ganhos</span>
-          <strong id="cardWon">0</strong>
-          <small>Negócios concluídos com sucesso.</small>
-        </div>
-
-        <div class="card">
-          <span>Perdidos</span>
-          <strong id="cardLost">0</strong>
-          <small>Negócios encerrados sem conversão.</small>
-        </div>
-      </section>
-
-      <section class="grid">
-        <div class="panel">
-          <div class="section-header">
-            <div>
-              <h2>Performance por vendedor</h2>
-              <p class="section-description">
-                Compare a quantidade de leads, SQLs, ganhos e perdidos por responsável.
-              </p>
-            </div>
+        <div class="filter-group filter-panel">
+          <div class="filter-panel-header">
+            <label>Carros</label>
+            <button type="button" class="mini-clear-btn" id="clearCars">Limpar</button>
           </div>
-
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Vendedor</th>
-                  <th>Leads</th>
-                  <th>SQL</th>
-                  <th>Ganhos</th>
-                  <th>Perdidos</th>
-                </tr>
-              </thead>
-              <tbody id="sellersTable"></tbody>
-            </table>
-          </div>
+          <div id="carList" class="seller-list"></div>
+          <small id="carSelectionInfo">Nenhum carro selecionado</small>
         </div>
+      </div>
+    </section>
 
-        <div class="panel">
-          <div class="section-header">
-            <div>
-              <h2>Origens de captação</h2>
-              <p class="section-description">
-                Entenda de quais canais seus leads estão chegando com maior volume.
-              </p>
-            </div>
-          </div>
+    <section class="cards" id="summaryCards">
+      <div class="card">
+        <span>Total Leads</span>
+        <strong id="cardTotal">0</strong>
+      </div>
+      <div class="card">
+        <span>Respondeu 1ª mensagem</span>
+        <strong id="cardReplied">0</strong>
+      </div>
+      <div class="card">
+        <span>SQL</span>
+        <strong id="cardSql">0</strong>
+      </div>
+      <div class="card">
+        <span>Ganhos</span>
+        <strong id="cardWon">0</strong>
+      </div>
+      <div class="card">
+        <span>Perdidos</span>
+        <strong id="cardLost">0</strong>
+      </div>
+    </section>
 
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Origem</th>
-                  <th>Leads</th>
-                </tr>
-              </thead>
-              <tbody id="sourcesTable"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="section-header">
-          <div>
-            <h2>Leads recentes</h2>
-            <p class="section-description">
-              Visualize os registros mais recentes com vendedor, pipeline, status,
-              campanha, carro e origem.
-            </p>
-          </div>
-        </div>
-
+    <section class="grid">
+      <div class="panel">
+        <h2>Vendedores</h2>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Lead</th>
                 <th>Vendedor</th>
-                <th>Pipeline</th>
-                <th>Status</th>
-                <th>Campanha</th>
-                <th>Carro</th>
-                <th>Origem</th>
-                <th>Criado em</th>
+                <th>Leads</th>
+                <th>SQL</th>
+                <th>Ganhos</th>
+                <th>Perdidos</th>
               </tr>
             </thead>
-            <tbody id="leadsTable"></tbody>
+            <tbody id="sellersTable"></tbody>
           </table>
         </div>
-      </section>
-    </main>
+      </div>
+
+      <div class="panel">
+        <h2>Origens</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Origem</th>
+                <th>Leads</th>
+              </tr>
+            </thead>
+            <tbody id="sourcesTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Leads recentes</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Lead</th>
+              <th>Vendedor</th>
+              <th>Pipeline</th>
+              <th>Status</th>
+              <th>Campanha</th>
+              <th>Carro</th>
+              <th>Origem</th>
+              <th>Criado em</th>
+            </tr>
+          </thead>
+          <tbody id="leadsTable"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
   <script src="/static/dashboard.js"></script>

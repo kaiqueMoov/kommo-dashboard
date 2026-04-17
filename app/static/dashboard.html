@@ -13,16 +13,63 @@
       <p>Visão geral de leads, funil e vendedores</p>
     </header>
 
-    <section class="filters">
-      <div class="filter-group">
-        <label for="start">Data inicial</label>
-        <input type="date" id="start" />
+    <section class="filters filters-grid">
+      <div class="filter-row-top">
+        <div class="filter-group search-group">
+          <label for="searchInput">Busca</label>
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Pesquisar por nome, campanha, carro, origem..."
+            />
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label for="start">Data inicial</label>
+          <input type="date" id="start" />
+        </div>
+
+        <div class="filter-group">
+          <label for="end">Data final</label>
+          <input type="date" id="end" />
+        </div>
+
+        <div class="filter-actions">
+          <button id="applyFilters">Aplicar filtros</button>
+        </div>
       </div>
-      <div class="filter-group">
-        <label for="end">Data final</label>
-        <input type="date" id="end" />
+
+      <div class="filter-columns">
+        <div class="filter-group filter-panel">
+          <div class="filter-panel-header">
+            <label>Vendedores</label>
+            <button type="button" class="mini-clear-btn" id="clearSellers">Limpar</button>
+          </div>
+          <div id="sellerList" class="seller-list"></div>
+          <small id="sellerSelectionInfo">Nenhum vendedor selecionado</small>
+        </div>
+
+        <div class="filter-group filter-panel">
+          <div class="filter-panel-header">
+            <label>Campanhas</label>
+            <button type="button" class="mini-clear-btn" id="clearCampaigns">Limpar</button>
+          </div>
+          <div id="campaignList" class="seller-list"></div>
+          <small id="campaignSelectionInfo">Nenhuma campanha selecionada</small>
+        </div>
+
+        <div class="filter-group filter-panel">
+          <div class="filter-panel-header">
+            <label>Carros</label>
+            <button type="button" class="mini-clear-btn" id="clearCars">Limpar</button>
+          </div>
+          <div id="carList" class="seller-list"></div>
+          <small id="carSelectionInfo">Nenhum carro selecionado</small>
+        </div>
       </div>
-      <button id="applyFilters">Aplicar filtros</button>
     </section>
 
     <section class="cards" id="summaryCards">

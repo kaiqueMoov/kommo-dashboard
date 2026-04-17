@@ -10,6 +10,7 @@ from app.core.lead_rules import LOST_STATUS_IDS, SQL_STATUS_IDS, WON_STATUS_IDS
 from app.integrations.kommo_client import KommoClient
 from app.models.lead import Lead
 from app.models.user import User
+from fastapi import HTTPException
 
 router = APIRouter()
 
@@ -227,8 +228,9 @@ def apply_lead_data(lead: Lead, item: dict) -> None:
 async def sync_single_lead(db: Session, client: KommoClient, lead_id: int) -> dict:
     data = await client.get_lead_by_id(lead_id)
 
+    
     if "status_code" in data:
-        return data
+        raise HTTPException(status_code=502, detail=data)
 
     lead = db.get(Lead, data["id"])
     if not lead:

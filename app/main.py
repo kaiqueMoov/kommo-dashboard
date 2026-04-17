@@ -5,25 +5,21 @@ from sqlalchemy import text
 
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.kommo import router as kommo_router
-from app.core.database import SessionLocal, engine
-from app.models.base import Base
-
-import app.models
+from app.core.database import SessionLocal
 
 app = FastAPI(title="Kommo Dashboard API")
-
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
-
-
 @app.get("/")
 def root():
-    return {"message": "API no ar"}
+    return {
+        "message": "Kommo Dashboard API no ar",
+        "docs": "/docs",
+        "health": "/health",
+        "app": "/app",
+    }
 
 
 @app.get("/health")

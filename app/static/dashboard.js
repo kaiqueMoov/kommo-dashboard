@@ -1,6 +1,9 @@
 let selectedSellerIds = new Set();
 let selectedCampaignNames = new Set();
 let selectedCarNames = new Set();
+let currentLeadsData = []; 
+let isLeadsExpanded = false; 
+const LEADS_LIMIT = 5; // Quantidade de leads visíveis por padrão (mude se quiser)
 
 const CURRENT_YEAR_START = "2026-01-01";
 
@@ -269,7 +272,13 @@ function renderLeads(rows) {
   const tbody = document.getElementById("leadsTable");
   tbody.innerHTML = "";
 
-  rows.forEach((row) => {
+  // Guarda os dados na variável global para usarmos no botão
+  currentLeadsData = rows;
+
+  // Se estiver expandido, mostra tudo. Se não, corta a array no limite.
+  const leadsToShow = isLeadsExpanded ? rows : rows.slice(0, LEADS_LIMIT);
+
+  leadsToShow.forEach((row) => {
     const createdAt = row.created_at_kommo
       ? new Date(row.created_at_kommo).toLocaleString("pt-BR")
       : "-";
@@ -287,6 +296,57 @@ function renderLeads(rows) {
     `;
     tbody.appendChild(tr);
   });
+
+  // Chama a função que cria o botão após renderizar a tabela
+  renderShowMoreButton();
+}
+
+
+
+{
+  function renderShowMoreButton() {
+  let btnContainer = document.getElementById("toggleLeadsContainer");
+
+  // Se o container do botão ainda não existir, cria e insere depois da tabela
+  if (!btnContainer) {
+    const table = document.getElementById("leadsTable").closest("table");
+    btnContainer = document.createElement("div");
+    btnContainer.id = "toggleLeadsContainer";
+    btnContainer.style.textAlign = "center";
+    btnContainer.style.marginTop = "15px"; // Espaço entre a tabela e o botão
+    
+    table.parentNode.insertBefore(btnContainer, table.nextSibling);
+  }
+
+  // Limpa o botão anterior
+  btnContainer.innerHTML = "";
+
+  // Só cria o botão se houver mais leads do que o limite permitido
+  if (currentLeadsData.length > LEADS_LIMIT) {
+    const btn = document.createElement("button");
+    
+    // Adicione as classes de CSS que você já usa no seu site (ex: "btn btn-primary")
+    btn.className = "btn-ver-mais"; 
+    btn.style.padding = "8px 16px";
+    btn.style.cursor = "pointer";
+
+    // Define o texto dinamicamente
+    if (isLeadsExpanded) {
+      btn.textContent = "Esconder Leads";
+    } else {
+      const hiddenCount = currentLeadsData.length - LEADS_LIMIT;
+      btn.textContent = `Ver mais (${hiddenCount})`;
+    }
+
+    // Ação de clique: inverte o estado e renderiza novamente
+    btn.addEventListener("click", () => {
+      isLeadsExpanded = !isLeadsExpanded;
+      renderLeads(currentLeadsData);
+    });
+
+    btnContainer.appendChild(btn);
+  }
+}
 }
 
 function renderOptionList(containerId, rows, optionClass, valueKey, labelKey, selectedSet, clickHandler, skipValues = []) {
@@ -376,7 +436,11 @@ async function loadDashboard() {
     renderSummary(summary);
     renderSellers(sellers);
     renderSources(sources);
+    
+    // Volta a esconder a lista ao buscar novos dados
+    isLeadsExpanded = false; 
     renderLeads(leads);
+    
     renderCampaigns(campaigns);
   } catch (error) {
     console.error(error);

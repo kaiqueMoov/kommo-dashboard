@@ -5,15 +5,100 @@ let selectedCarNames = new Set();
 const CURRENT_YEAR_START = "2026-01-01";
 const DEFAULT_VISIBLE_ROWS = 5;
 
+
+let dashboardMetadata = {
+  pipelines: {},
+  statuses: {},
+};
+
 let expandedTables = {
   campaigns: false,
+  cars: false,
   sellers: false,
   leads: false,
 };
 
 let currentCampaignsData = [];
+let currentCarsData = [];
 let currentSellersData = [];
 let currentLeadsData = [];
+
+
+
+const FUNNEL_RULES = {
+  CPA: {
+    aliases: ["cpa", "trafego pago", "lead novo trafego pago"],
+    stages: [
+      "Etapa de leads de entrada",
+      "Solicitações",
+      "Lead Novo Tráfego Pago",
+      "Liguei",
+      "Mensagem Enviada",
+      "Respondeu a Primeira Mensagem",
+      "SQL",
+      "Orçamento Enviado",
+      "Em Negociação",
+      "Aguardando Documentos",
+      "Subir Ficha",
+      "Em Análise",
+      "Aprovado Para Contratação",
+      "Venda ganha",
+    ],
+  },
+  FS: {
+    aliases: ["fs", "seguro auto", "funil seguros"],
+    stages: [
+      "Etapa de leads de entrada",
+      "Novo Lead",
+      "Mensagem Enviada",
+      "Respondeu a Primeira Mensagem",
+      "Cálculo Enviado",
+      "Cálculo Respondido",
+      "Proposta Gerada",
+      "Aguardando Vistoria",
+      "Em Processo de Emissão",
+      "Indicação Vida",
+      "Venda ganha",
+    ],
+  },
+  SEGURO_SAUDE: {
+    aliases: ["funil seguro saude", "seguro saude", "saude", "saúde"],
+    stages: [
+      "Etapa de leads de entrada",
+      "Novo Lead Cadastrado",
+      "Renovações",
+      "Responderam Sim",
+      "Sair da Lista",
+      "Outras Respostas do Disparo",
+      "Mensagem Enviada",
+      "Respondeu com Dados",
+      "Cotação Enviada",
+      "Respondeu Cotação",
+      "Aguardando Documentação",
+      "Análise Operadora",
+      "Aguardando Pagamento",
+      "Renovação Concluída",
+      "Venda ganha",
+    ],
+  },
+  SEGURO_VIDA: {
+    aliases: ["funil seguro de vida", "seguro de vida", "vida"],
+    stages: [
+      "Etapa de leads de entrada",
+      "Prospecção",
+      "Mensagem Enviada",
+      "Respondeu a Primeira Mensagem",
+      "Cálculo Enviado",
+      "Em Andamento",
+      "Proposta Gerada",
+      "Em Análise Seguradora",
+      "Proposta Recusada",
+      "Venda ganha",
+    ],
+  },
+};
+
+
 
 function getSelectedSellerIds() {
   return Array.from(selectedSellerIds);
@@ -28,12 +113,15 @@ function getSelectedCarNames() {
 }
 
 function getSearchValue() {
-  return document.getElementById("searchInput").value.trim();
+  const input = document.getElementById("searchInput");
+  return input ? input.value.trim() : "";
 }
 
 function setDefaultDates() {
   const startInput = document.getElementById("start");
   const endInput = document.getElementById("end");
+
+  if (!startInput || !endInput) return;
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
@@ -49,6 +137,7 @@ function setDefaultDates() {
 
 function updateSelectionInfo(elementId, selectedCount, singular, plural, emptyText) {
   const info = document.getElementById(elementId);
+  if (!info) return;
 
   if (selectedCount === 0) {
     info.textContent = emptyText;
@@ -144,8 +233,11 @@ function updateCarListUI() {
 }
 
 function buildQuery() {
-  const start = document.getElementById("start").value;
-  const end = document.getElementById("end").value;
+  const startInput = document.getElementById("start");
+  const endInput = document.getElementById("end");
+
+  const start = startInput ? startInput.value : "";
+  const end = endInput ? endInput.value : "";
 
   const sellerIds = getSelectedSellerIds();
   const campaignNames = getSelectedCampaignNames();
@@ -161,8 +253,7 @@ function buildQuery() {
   if (end) {
     const endDate = new Date(end);
     endDate.setDate(endDate.getDate() + 1);
-    const adjustedEnd = endDate.toISOString().slice(0, 10);
-    params.append("end", adjustedEnd);
+    params.append("end", endDate.toISOString().slice(0, 10));
   }
 
   if (search) {
@@ -221,7 +312,7 @@ function updateToggleButton(buttonId, rows, tableKey) {
   const btn = document.getElementById(buttonId);
   if (!btn) return;
 
-  if (rows.length <= DEFAULT_VISIBLE_ROWS) {
+  if (!rows || rows.length <= DEFAULT_VISIBLE_ROWS) {
     btn.style.display = "none";
     return;
   }
@@ -231,11 +322,17 @@ function updateToggleButton(buttonId, rows, tableKey) {
 }
 
 function renderSummary(data) {
-  document.getElementById("cardTotal").textContent = data.total_leads ?? 0;
-  document.getElementById("cardReplied").textContent = data.replied_first_message ?? 0;
-  document.getElementById("cardSql").textContent = data.sql_count ?? 0;
-  document.getElementById("cardWon").textContent = data.won_count ?? 0;
-  document.getElementById("cardLost").textContent = data.lost_count ?? 0;
+  const cardTotal = document.getElementById("cardTotal");
+  const cardReplied = document.getElementById("cardReplied");
+  const cardSql = document.getElementById("cardSql");
+  const cardWon = document.getElementById("cardWon");
+  const cardLost = document.getElementById("cardLost");
+
+  if (cardTotal) cardTotal.textContent = data.total_leads ?? 0;
+  if (cardReplied) cardReplied.textContent = data.replied_first_message ?? 0;
+  if (cardSql) cardSql.textContent = data.sql_count ?? 0;
+  if (cardWon) cardWon.textContent = data.won_count ?? 0;
+  if (cardLost) cardLost.textContent = data.lost_count ?? 0;
 }
 
 function renderSellerHighlights(rows) {
@@ -277,11 +374,54 @@ function renderSellerHighlights(rows) {
   });
 }
 
+function renderCarHighlights(rows) {
+  const container = document.getElementById("carHighlights");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const topThree = [...rows]
+    .sort((a, b) => {
+      if ((b.total_leads ?? 0) !== (a.total_leads ?? 0)) {
+        return (b.total_leads ?? 0) - (a.total_leads ?? 0);
+      }
+      return (b.won_rate ?? 0) - (a.won_rate ?? 0);
+    })
+    .slice(0, 3);
+
+  topThree.forEach((row, index) => {
+    const div = document.createElement("div");
+    div.className = "car-highlight-card";
+
+    const badge =
+      index === 0 ? "🚘 Destaque" :
+      index === 1 ? "🚗 Alta procura" :
+      "📈 Potencial";
+
+    div.innerHTML = `
+      <div class="car-highlight-top">
+        <span class="car-rank-label">${badge}</span>
+      </div>
+      <strong>${row.car_name ?? "Sem carro"}</strong>
+      <div class="car-highlight-metrics">
+        <span><b>${row.total_leads ?? 0}</b> leads</span>
+        <span><b>${row.sql_count ?? 0}</b> SQL</span>
+        <span><b>${row.won_count ?? 0}</b> ganhos</span>
+        <span><b>${row.won_rate ?? 0}%</b> conversão</span>
+      </div>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
 function renderSellers(rows) {
   const tbody = document.getElementById("sellersTable");
-  tbody.innerHTML = "";
+  if (!tbody) return;
 
+  tbody.innerHTML = "";
   currentSellersData = rows;
+
   const visibleRows = getVisibleRows(rows, "sellers");
 
   visibleRows.forEach((row) => {
@@ -306,6 +446,8 @@ function renderSellers(rows) {
 
 function renderSources(rows) {
   const tbody = document.getElementById("sourcesTable");
+  if (!tbody) return;
+
   tbody.innerHTML = "";
 
   rows.forEach((row) => {
@@ -323,8 +465,8 @@ function renderCampaigns(rows) {
   if (!tbody) return;
 
   tbody.innerHTML = "";
-
   currentCampaignsData = rows;
+
   const visibleRows = getVisibleRows(rows, "campaigns");
 
   visibleRows.forEach((row) => {
@@ -346,24 +488,145 @@ function renderCampaigns(rows) {
   updateToggleButton("toggleCampaignsTable", rows, "campaigns");
 }
 
+function renderCars(rows) {
+  const tbody = document.getElementById("carsTable");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+  currentCarsData = rows;
+
+  const visibleRows = getVisibleRows(rows, "cars");
+
+  visibleRows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.car_name ?? "Sem carro"}</td>
+      <td>${row.total_leads ?? 0}</td>
+      <td>${row.sql_count ?? 0}</td>
+      <td>${row.sql_rate ?? 0}%</td>
+      <td>${row.won_count ?? 0}</td>
+      <td>${row.won_rate ?? 0}%</td>
+      <td>${row.lost_count ?? 0}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  renderCarHighlights(rows);
+  updateToggleButton("toggleCarsTable", rows, "cars");
+}
+
+function getFunnelBadgeClass(funnelType) {
+  switch (funnelType) {
+    case "CPA":
+      return "table-badge table-badge--funnel table-badge--funnel-cpa";
+    case "FS":
+      return "table-badge table-badge--funnel table-badge--funnel-fs";
+    case "SEGURO_SAUDE":
+      return "table-badge table-badge--funnel table-badge--funnel-saude";
+    case "SEGURO_VIDA":
+      return "table-badge table-badge--funnel table-badge--funnel-vida";
+    default:
+      return "table-badge table-badge--funnel table-badge--funnel-default";
+  }
+}
+
+function getFunnelLabel(funnelType) {
+  switch (funnelType) {
+    case "CPA":
+      return "CPA";
+    case "FS":
+      return "FS";
+    case "SEGURO_SAUDE":
+      return "Seguro Saúde";
+    case "SEGURO_VIDA":
+      return "Seguro de Vida";
+    default:
+      return "Outros";
+  }
+}
+
 function renderLeads(rows) {
   const tbody = document.getElementById("leadsTable");
-  tbody.innerHTML = "";
+  if (!tbody) return;
 
-  currentLeadsData = rows;
-  const visibleRows = getVisibleRows(rows, "leads");
+  tbody.innerHTML = "";
+  currentLeadsData = rows || [];
+
+  const visibleRows = getVisibleRows(currentLeadsData, "leads");
 
   visibleRows.forEach((row) => {
     const createdAt = row.created_at_kommo
       ? new Date(row.created_at_kommo).toLocaleString("pt-BR")
       : "-";
 
+    const pipelineName = getPipelineName(row.pipeline_id);
+    const statusName = getStatusName(row.pipeline_id, row.status_id);
+
+    const statusClass = getStatusBadgeClass(statusName);
+    function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function detectFunnelTypeFromPipeline(pipelineName) {
+  const normalizedPipeline = normalizeText(pipelineName);
+
+  for (const [funnelKey, config] of Object.entries(FUNNEL_RULES)) {
+    for (const alias of config.aliases) {
+      if (normalizedPipeline.includes(normalizeText(alias))) {
+        return funnelKey;
+      }
+    }
+  }
+
+  return "OUTROS";
+}
+
+function getStageOrderFromFunnel(funnelType, statusName) {
+  const config = FUNNEL_RULES[funnelType];
+  if (!config) return 999;
+
+  const normalizedStatus = normalizeText(statusName);
+
+  for (let i = 0; i < config.stages.length; i += 1) {
+    if (normalizeText(config.stages[i]) === normalizedStatus) {
+      return i + 1;
+    }
+  }
+
+  return 999;
+}
+
+function getFunnelDisplayName(funnelType) {
+  switch (funnelType) {
+    case "CPA":
+      return "CPA";
+    case "FS":
+      return "FS";
+    case "SEGURO_SAUDE":
+      return "Seguro Saúde";
+    case "SEGURO_VIDA":
+      return "Seguro de Vida";
+    default:
+      return "Outros";
+  }
+}
+
+
+
+    const funnelLabel = getFunnelLabel(row.funnel_type);
+    const funnelClass = getFunnelBadgeClass(row.funnel_type);
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${row.lead_name ?? "-"}</td>
       <td>${row.seller_name ?? "Sem responsável"}</td>
-      <td>${row.pipeline_id ?? "-"}</td>
-      <td>${row.status_id ?? "-"}</td>
+      <td><span class="${funnelClass}">${funnelLabel}</span></td>
+      <td><span class="table-badge table-badge--pipeline">${pipelineName}</span></td>
+      <td><span class="${statusClass}">${statusName}</span></td>
       <td>${row.campaign_name ?? "Sem campanha"}</td>
       <td>${row.car_name ?? "Sem carro"}</td>
       <td>${row.lead_source ?? "Sem origem"}</td>
@@ -372,11 +635,91 @@ function renderLeads(rows) {
     tbody.appendChild(tr);
   });
 
-  updateToggleButton("toggleLeadsTable", rows, "leads");
+  updateToggleButton("toggleLeadsTable", currentLeadsData, "leads");
 }
+{
+  function renderFunnelStageBoards(rows) {
+  const container = document.getElementById("funnelStageBoards");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+   renderSummary(summary);
+    renderSellers(sellers);
+    renderSources(sources);
+    renderLeads(leads);
+    renderCampaigns(campaigns);
+    renderCars(cars);
+    renderFunnelStageBoards(leads);
+
+  const grouped = {
+    CPA: {},
+    FS: {},
+    SEGURO_SAUDE: {},
+    SEGURO_VIDA: {},
+  };
+
+  (rows || []).forEach((row) => {
+    const pipelineName = getPipelineName(row.pipeline_id);
+    const statusName = getStatusName(row.pipeline_id, row.status_id);
+
+    const funnelType = detectFunnelTypeFromPipeline(pipelineName);
+    if (!grouped[funnelType]) return;
+
+    const stageOrder = getStageOrderFromFunnel(funnelType, statusName);
+    const stageKey = `${stageOrder}__${statusName}`;
+
+    if (!grouped[funnelType][stageKey]) {
+      grouped[funnelType][stageKey] = {
+        stage_name: statusName,
+        count: 0,
+        stage_order: stageOrder,
+      };
+    }
+
+    grouped[funnelType][stageKey].count += 1;
+  });
+
+  Object.keys(grouped).forEach((funnelType) => {
+    const board = document.createElement("div");
+    board.className = "funnel-stage-board";
+
+    const rowsForFunnel = Object.values(grouped[funnelType]).sort(
+      (a, b) => a.stage_order - b.stage_order
+    );
+
+    const itemsHtml = rowsForFunnel.length
+      ? rowsForFunnel
+          .map(
+            (item) => `
+              <div class="funnel-stage-item">
+                <span class="funnel-stage-name">${item.stage_name}</span>
+                <span class="funnel-stage-count">${item.count}</span>
+              </div>
+            `
+          )
+          .join("")
+      : `<div class="funnel-stage-empty">Sem leads neste funil.</div>`;
+
+    board.innerHTML = `
+      <div class="funnel-stage-board-header">
+        <h3>${getFunnelDisplayName(funnelType)}</h3>
+      </div>
+      <div class="funnel-stage-list">
+        ${itemsHtml}
+      </div>
+    `;
+
+    container.appendChild(board);
+  });
+}
+}
+
 
 function renderOptionList(containerId, rows, optionClass, valueKey, labelKey, selectedSet, clickHandler, skipValues = []) {
   const container = document.getElementById(containerId);
+  if (!container) return;
+
   container.innerHTML = "";
 
   rows.forEach((row) => {
@@ -447,20 +790,28 @@ async function loadCarOptions() {
   );
 }
 
+
+
+
 async function loadDashboard() {
   const query = buildQuery();
 
   try {
-    const [summary, sellers, sources, leads, campaigns] = await Promise.all([
+    const [summary, sellers, sources, leads, campaigns, cars, metadata] = await Promise.all([
       fetchJson(`/dashboard/summary${query}`),
       fetchJson(`/dashboard/sellers${query}`),
       fetchJson(`/dashboard/sources${query}`),
       fetchJson(`/dashboard/leads${query}`),
       fetchJson(`/dashboard/campaigns${query}`),
+      fetchJson(`/dashboard/cars${query}`),
+      fetchJson(`/dashboard/metadata`),
     ]);
+
+    dashboardMetadata = metadata || { pipelines: {}, statuses: {} };
 
     expandedTables.campaigns = false;
     expandedTables.sellers = false;
+    expandedTables.cars = false;
     expandedTables.leads = false;
 
     renderSummary(summary);
@@ -468,6 +819,7 @@ async function loadDashboard() {
     renderSources(sources);
     renderLeads(leads);
     renderCampaigns(campaigns);
+    renderCars(cars);
   } catch (error) {
     console.error(error);
     alert("Erro ao carregar o dashboard.");
@@ -483,12 +835,85 @@ async function refreshFilterLists() {
   updateAllSelectionInfos();
 }
 
-document.getElementById("applyFilters").addEventListener("click", async () => {
+function bindClickIfExists(id, handler) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.addEventListener("click", handler);
+  }
+}
+
+function bindInputIfExists(id, eventName, handler) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.addEventListener(eventName, handler);
+  }
+}
+
+function normalizeStatusName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function getStatusBadgeClass(statusName) {
+  const normalized = normalizeStatusName(statusName);
+
+  if (
+    normalized.includes("ganho") ||
+    normalized.includes("fechado ganho") ||
+    normalized.includes("closed won")
+  ) {
+    return "table-badge table-badge--status table-badge--won";
+  }
+
+  if (
+    normalized.includes("perdido") ||
+    normalized.includes("fechado perdido") ||
+    normalized.includes("lost") ||
+    normalized.includes("desqualificado")
+  ) {
+    return "table-badge table-badge--status table-badge--lost";
+  }
+
+  if (
+    normalized.includes("sql") ||
+    normalized.includes("qualificado") ||
+    normalized.includes("qualificacao")
+  ) {
+    return "table-badge table-badge--status table-badge--sql";
+  }
+
+  if (
+    normalized.includes("novo") ||
+    normalized.includes("lead") ||
+    normalized.includes("inicial") ||
+    normalized.includes("primeiro contato")
+  ) {
+    return "table-badge table-badge--status table-badge--new";
+  }
+
+  return "table-badge table-badge--status table-badge--default";
+}
+function getPipelineName(pipelineId) {
+  if (!pipelineId) return "Sem pipeline";
+  return dashboardMetadata.pipelines[String(pipelineId)] || `Pipeline ${pipelineId}`;
+}
+
+function getStatusName(pipelineId, statusId) {
+  if (!statusId) return "Sem status";
+
+  const compositeKey = `${pipelineId}:${statusId}`;
+  return dashboardMetadata.statuses[compositeKey] || `Status ${statusId}`;
+}
+
+bindClickIfExists("applyFilters", async () => {
   await refreshFilterLists();
   await loadDashboard();
 });
 
-document.getElementById("searchInput").addEventListener("keydown", async (event) => {
+bindInputIfExists("searchInput", "keydown", async (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
     await refreshFilterLists();
@@ -496,35 +921,40 @@ document.getElementById("searchInput").addEventListener("keydown", async (event)
   }
 });
 
-document.getElementById("clearSellers").addEventListener("click", () => {
+bindClickIfExists("clearSellers", () => {
   selectedSellerIds.clear();
   updateSellerListUI();
   updateAllSelectionInfos();
 });
 
-document.getElementById("clearCampaigns").addEventListener("click", () => {
+bindClickIfExists("clearCampaigns", () => {
   selectedCampaignNames.clear();
   updateCampaignListUI();
   updateAllSelectionInfos();
 });
 
-document.getElementById("clearCars").addEventListener("click", () => {
+bindClickIfExists("clearCars", () => {
   selectedCarNames.clear();
   updateCarListUI();
   updateAllSelectionInfos();
 });
 
-document.getElementById("toggleCampaignsTable").addEventListener("click", () => {
+bindClickIfExists("toggleCampaignsTable", () => {
   expandedTables.campaigns = !expandedTables.campaigns;
   renderCampaigns(currentCampaignsData);
 });
 
-document.getElementById("toggleSellersTable").addEventListener("click", () => {
+bindClickIfExists("toggleCarsTable", () => {
+  expandedTables.cars = !expandedTables.cars;
+  renderCars(currentCarsData);
+});
+
+bindClickIfExists("toggleSellersTable", () => {
   expandedTables.sellers = !expandedTables.sellers;
   renderSellers(currentSellersData);
 });
 
-document.getElementById("toggleLeadsTable").addEventListener("click", () => {
+bindClickIfExists("toggleLeadsTable", () => {
   expandedTables.leads = !expandedTables.leads;
   renderLeads(currentLeadsData);
 });

@@ -74,3 +74,9 @@ class KommoClient:
             "/api/v4/leads/custom_fields",
             params={"page": 1, "limit": 250},
         )
+
+    async def get_pipelines(self) -> dict:
+        return await self._get("/api/v4/leads/pipelines")
+
+    async def get_pipeline_statuses(self, pipeline_id: int) -> dict:
+        return await self._get(f"/api/v4/leads/pipelines/{pipeline_id}/statuses")

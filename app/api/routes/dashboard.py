@@ -7,6 +7,12 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.models.lead import Lead
 from app.models.user import User
+from app.core.kommo_labels import get_pipeline_label, get_status_label
+from fastapi import APIRouter, Depends, Query, HTTPException
+from app.integrations.kommo_client import KommoClient
+from fastapi import APIRouter, Depends, Query, HTTPException
+from app.integrations.kommo_client import KommoClient
+from app.core.funnel_rules import detect_funnel_type, get_stage_order
 
 router = APIRouter()
 
@@ -181,19 +187,41 @@ def dashboard_cars(
     query = db.query(
         Lead.car_name.label("car_name"),
         func.count(Lead.id).label("total_leads"),
+        func.sum(case((Lead.sql_at.isnot(None), 1), else_=0)).label("sql_count"),
+        func.sum(case((Lead.won_at.isnot(None), 1), else_=0)).label("won_count"),
+        func.sum(case((Lead.lost_at.isnot(None), 1), else_=0)).label("lost_count"),
     )
 
     query = apply_all_filters(query, start, end, seller_ids, campaign_names, car_names, search)
 
-    results = query.group_by(Lead.car_name).order_by(func.count(Lead.id).desc()).all()
+    results = (
+        query.group_by(Lead.car_name)
+        .order_by(func.count(Lead.id).desc())
+        .all()
+    )
 
-    return [
-        {
-            "car_name": row.car_name or "Sem carro",
-            "total_leads": row.total_leads or 0,
-        }
-        for row in results
-    ]
+    output = []
+
+    for row in results:
+        total = row.total_leads or 0
+        sql_count = row.sql_count or 0
+        won_count = row.won_count or 0
+        lost_count = row.lost_count or 0
+
+        output.append(
+            {
+                "car_name": row.car_name or "Sem carro",
+                "total_leads": total,
+                "sql_count": sql_count,
+                "won_count": won_count,
+                "lost_count": lost_count,
+                "sql_rate": round((sql_count / total) * 100, 2) if total else 0,
+                "won_rate": round((won_count / total) * 100, 2) if total else 0,
+                "lost_rate": round((lost_count / total) * 100, 2) if total else 0,
+            }
+        )
+
+    return output
 
 
 @router.get("/sources")
@@ -283,7 +311,6 @@ def dashboard_sellers(
 
     return output
 
-
 @router.get("/leads")
 def dashboard_leads(
     start: str | None = Query(default=None),
@@ -313,17 +340,68 @@ def dashboard_leads(
 
     results = query.order_by(Lead.created_at_kommo.desc().nullslast()).all()
 
-    return [
-        {
-            "id": row.id,
-            "lead_name": row.lead_name,
-            "seller_name": row.seller_name or "Sem responsável",
-            "pipeline_id": row.pipeline_id,
-            "status_id": row.status_id,
-            "campaign_name": row.campaign_name or "Sem campanha",
-            "car_name": row.car_name or "Sem carro",
-            "lead_source": row.lead_source or "Sem origem",
-            "created_at_kommo": row.created_at_kommo,
-        }
-        for row in results
-    ]
+    output = []
+
+    for row in results:
+        pipeline_name = get_pipeline_label(row.pipeline_id)
+        status_name = get_status_label(row.status_id)
+        funnel_type = detect_funnel_type(pipeline_name)
+        stage_order = get_stage_order(funnel_type, status_name)
+
+        output.append(
+            {
+                "id": row.id,
+                "lead_name": row.lead_name,
+                "seller_name": row.seller_name or "Sem responsável",
+                "pipeline_id": row.pipeline_id,
+                "pipeline_name": pipeline_name,
+                "status_id": row.status_id,
+                "status_name": status_name,
+                "funnel_type": funnel_type,
+                "stage_order": stage_order,
+                "campaign_name": row.campaign_name or "Sem campanha",
+                "car_name": row.car_name or "Sem carro",
+                "lead_source": row.lead_source or "Sem origem",
+                "created_at_kommo": row.created_at_kommo,
+            }
+        )
+
+    return output
+
+@router.get("/metadata")
+async def dashboard_metadata():
+    client = KommoClient()
+
+    pipelines_data = await client.get_pipelines()
+    if "status_code" in pipelines_data:
+        raise HTTPException(status_code=502, detail=pipelines_data)
+
+    pipelines = {}
+    statuses = {}
+
+    for pipeline in pipelines_data.get("_embedded", {}).get("pipelines", []):
+        pipeline_id = pipeline.get("id")
+        pipeline_name = pipeline.get("name") or f"Pipeline {pipeline_id}"
+
+        if not pipeline_id:
+            continue
+
+        pipelines[str(pipeline_id)] = pipeline_name
+
+        statuses_data = await client.get_pipeline_statuses(pipeline_id)
+        if "status_code" in statuses_data:
+            continue
+
+        for status in statuses_data.get("_embedded", {}).get("statuses", []):
+            status_id = status.get("id")
+            status_name = status.get("name") or f"Status {status_id}"
+
+            if not status_id:
+                continue
+
+            statuses[f"{pipeline_id}:{status_id}"] = status_name
+
+    return {
+        "pipelines": pipelines,
+        "statuses": statuses,
+    }

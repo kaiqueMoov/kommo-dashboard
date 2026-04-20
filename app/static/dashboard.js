@@ -35,6 +35,30 @@ function setDefaultDates() {
     endInput.value = today;
   }
 }
+{
+  function renderCampaigns(rows) {
+  const tbody = document.getElementById("campaignsTable");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.campaign_name ?? "Sem campanha"}</td>
+      <td>${row.total_leads ?? 0}</td>
+      <td>${row.replied_first_message ?? 0}</td>
+      <td>${row.sql_count ?? 0}</td>
+      <td>${row.won_count ?? 0}</td>
+      <td>${row.lost_count ?? 0}</td>
+      <td>${row.reply_rate ?? 0}%</td>
+      <td>${row.sql_rate ?? 0}%</td>
+      <td>${row.won_rate ?? 0}%</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+}
 
 function updateSelectionInfo(elementId, selectedCount, singular, plural, emptyText) {
   const info = document.getElementById(elementId);
@@ -341,17 +365,19 @@ async function loadDashboard() {
   const query = buildQuery();
 
   try {
-    const [summary, sellers, sources, leads] = await Promise.all([
+    const [summary, sellers, sources, leads, campaigns] = await Promise.all([
       fetchJson(`/dashboard/summary${query}`),
       fetchJson(`/dashboard/sellers${query}`),
       fetchJson(`/dashboard/sources${query}`),
       fetchJson(`/dashboard/leads${query}`),
+      fetchJson(`/dashboard/campaigns${query}`),
     ]);
 
     renderSummary(summary);
     renderSellers(sellers);
     renderSources(sources);
     renderLeads(leads);
+    renderCampaigns(campaigns);
   } catch (error) {
     console.error(error);
     alert("Erro ao carregar o dashboard.");

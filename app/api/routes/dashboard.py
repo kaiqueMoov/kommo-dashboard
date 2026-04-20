@@ -114,7 +114,6 @@ def dashboard_summary(
         "lost_count": lost_count,
     }
 
-
 @router.get("/campaigns")
 def dashboard_campaigns(
     start: str | None = Query(default=None),
@@ -136,19 +135,37 @@ def dashboard_campaigns(
 
     query = apply_all_filters(query, start, end, seller_ids, campaign_names, car_names, search)
 
-    results = query.group_by(Lead.campaign_name).order_by(func.count(Lead.id).desc()).all()
+    results = (
+        query.group_by(Lead.campaign_name)
+        .order_by(func.count(Lead.id).desc())
+        .all()
+    )
 
-    return [
-        {
-            "campaign_name": row.campaign_name or "Sem campanha",
-            "total_leads": row.total_leads or 0,
-            "replied_first_message": row.replied_first_message or 0,
-            "sql_count": row.sql_count or 0,
-            "won_count": row.won_count or 0,
-            "lost_count": row.lost_count or 0,
-        }
-        for row in results
-    ]
+    output = []
+
+    for row in results:
+        total = row.total_leads or 0
+        replied = row.replied_first_message or 0
+        sql_count = row.sql_count or 0
+        won_count = row.won_count or 0
+        lost_count = row.lost_count or 0
+
+        output.append(
+            {
+                "campaign_name": row.campaign_name or "Sem campanha",
+                "total_leads": total,
+                "replied_first_message": replied,
+                "sql_count": sql_count,
+                "won_count": won_count,
+                "lost_count": lost_count,
+                "reply_rate": round((replied / total) * 100, 2) if total else 0,
+                "sql_rate": round((sql_count / total) * 100, 2) if total else 0,
+                "won_rate": round((won_count / total) * 100, 2) if total else 0,
+                "lost_rate": round((lost_count / total) * 100, 2) if total else 0,
+            }
+        )
+
+    return output
 
 
 @router.get("/cars")

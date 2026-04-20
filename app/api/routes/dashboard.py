@@ -239,6 +239,7 @@ def dashboard_sellers(
             User.id.label("seller_id"),
             User.name.label("seller_name"),
             func.count(Lead.id).label("total_leads"),
+            func.sum(case((Lead.replied_first_message.is_(True), 1), else_=0)).label("replied_first_message"),
             func.sum(case((Lead.sql_at.isnot(None), 1), else_=0)).label("sql_count"),
             func.sum(case((Lead.won_at.isnot(None), 1), else_=0)).label("won_count"),
             func.sum(case((Lead.lost_at.isnot(None), 1), else_=0)).label("lost_count"),
@@ -248,19 +249,39 @@ def dashboard_sellers(
 
     query = apply_all_filters(query, start, end, seller_ids, campaign_names, car_names, search)
 
-    results = query.group_by(User.id, User.name).order_by(func.count(Lead.id).desc()).all()
+    results = (
+        query.group_by(User.id, User.name)
+        .order_by(func.sum(case((Lead.won_at.isnot(None), 1), else_=0)).desc(),
+                  func.count(Lead.id).desc())
+        .all()
+    )
 
-    return [
-        {
-            "seller_id": row.seller_id,
-            "seller_name": row.seller_name or "Sem responsável",
-            "total_leads": row.total_leads or 0,
-            "sql_count": row.sql_count or 0,
-            "won_count": row.won_count or 0,
-            "lost_count": row.lost_count or 0,
-        }
-        for row in results
-    ]
+    output = []
+
+    for row in results:
+        total = row.total_leads or 0
+        replied = row.replied_first_message or 0
+        sql_count = row.sql_count or 0
+        won_count = row.won_count or 0
+        lost_count = row.lost_count or 0
+
+        output.append(
+            {
+                "seller_id": row.seller_id,
+                "seller_name": row.seller_name or "Sem responsável",
+                "total_leads": total,
+                "replied_first_message": replied,
+                "sql_count": sql_count,
+                "won_count": won_count,
+                "lost_count": lost_count,
+                "reply_rate": round((replied / total) * 100, 2) if total else 0,
+                "sql_rate": round((sql_count / total) * 100, 2) if total else 0,
+                "won_rate": round((won_count / total) * 100, 2) if total else 0,
+                "lost_rate": round((lost_count / total) * 100, 2) if total else 0,
+            }
+        )
+
+    return output
 
 
 @router.get("/leads")

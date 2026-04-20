@@ -149,35 +149,41 @@
       </section>
 
       <section class="grid">
-        <div class="panel">
-          <div class="section-header">
-            <div>
-              <h2>Performance por vendedor</h2>
-              <p class="section-description">
-                Compare a quantidade de leads, SQLs, ganhos e perdidos por responsável.
-              </p>
-            </div>
-          </div>
+       <div class="panel">
+  <div class="section-header">
+    <div>
+      <h2>Ranking de vendedores</h2>
+      <p class="section-description">
+        Compare desempenho, conversão e volume de leads por responsável.
+      </p>
+    </div>
+  </div>
 
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Vendedor</th>
-                  <th>Leads</th>
-                  <th>SQL</th>
-                  <th>Ganhos</th>
-                  <th>Perdidos</th>
-                </tr>
-              </thead>
-              <tbody id="sellersTable"></tbody>
-            </table>
-          </div>
+  <div class="seller-highlights" id="sellerHighlights"></div>
 
-          <div class="table-actions">
-            <button type="button" class="see-more-btn" id="toggleSellersTable">Ver mais</button>
-          </div>
-        </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Vendedor</th>
+          <th>Leads</th>
+          <th>Resp.</th>
+          <th>% Resp.</th>
+          <th>SQL</th>
+          <th>% SQL</th>
+          <th>Ganhos</th>
+          <th>% Ganho</th>
+          <th>Perdidos</th>
+        </tr>
+      </thead>
+      <tbody id="sellersTable"></tbody>
+    </table>
+  </div>
+
+  <div class="table-actions">
+    <button type="button" class="see-more-btn" id="toggleSellersTable">Ver mais</button>
+  </div>
+</div>
 
         <div class="panel">
           <div class="section-header">

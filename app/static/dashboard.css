@@ -504,3 +504,65 @@ tbody tr:last-child td {
     min-width: 620px;
   }
 }
+.seller-highlights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.seller-highlight-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8f5ff 100%);
+  border: 1px solid rgba(118, 72, 201, 0.12);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.seller-highlight-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.seller-medal {
+  font-size: 18px;
+}
+
+.seller-rank-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  background: rgba(118, 72, 201, 0.08);
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+
+.seller-highlight-card strong {
+  display: block;
+  font-size: 16px;
+  color: var(--primary-dark);
+  margin-bottom: 12px;
+}
+
+.seller-highlight-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.seller-highlight-metrics span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.seller-highlight-metrics b {
+  color: var(--text);
+}
+
+@media (max-width: 980px) {
+  .seller-highlights {
+    grid-template-columns: 1fr;
+  }
+}

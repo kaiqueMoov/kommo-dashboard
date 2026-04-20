@@ -238,6 +238,45 @@ function renderSummary(data) {
   document.getElementById("cardLost").textContent = data.lost_count ?? 0;
 }
 
+function renderSellerHighlights(rows) {
+  const container = document.getElementById("sellerHighlights");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const topThree = [...rows]
+    .sort((a, b) => {
+      if ((b.won_count ?? 0) !== (a.won_count ?? 0)) {
+        return (b.won_count ?? 0) - (a.won_count ?? 0);
+      }
+      return (b.won_rate ?? 0) - (a.won_rate ?? 0);
+    })
+    .slice(0, 3);
+
+  topThree.forEach((row, index) => {
+    const div = document.createElement("div");
+    div.className = "seller-highlight-card";
+
+    const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉";
+
+    div.innerHTML = `
+      <div class="seller-highlight-top">
+        <span class="seller-medal">${medal}</span>
+        <span class="seller-rank-label">Top ${index + 1}</span>
+      </div>
+      <strong>${row.seller_name ?? "Sem responsável"}</strong>
+      <div class="seller-highlight-metrics">
+        <span><b>${row.total_leads ?? 0}</b> leads</span>
+        <span><b>${row.sql_count ?? 0}</b> SQL</span>
+        <span><b>${row.won_count ?? 0}</b> ganhos</span>
+        <span><b>${row.won_rate ?? 0}%</b> conversão</span>
+      </div>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
 function renderSellers(rows) {
   const tbody = document.getElementById("sellersTable");
   tbody.innerHTML = "";
@@ -250,13 +289,18 @@ function renderSellers(rows) {
     tr.innerHTML = `
       <td>${row.seller_name ?? "Sem responsável"}</td>
       <td>${row.total_leads ?? 0}</td>
+      <td>${row.replied_first_message ?? 0}</td>
+      <td>${row.reply_rate ?? 0}%</td>
       <td>${row.sql_count ?? 0}</td>
+      <td>${row.sql_rate ?? 0}%</td>
       <td>${row.won_count ?? 0}</td>
+      <td>${row.won_rate ?? 0}%</td>
       <td>${row.lost_count ?? 0}</td>
     `;
     tbody.appendChild(tr);
   });
 
+  renderSellerHighlights(rows);
   updateToggleButton("toggleSellersTable", rows, "sellers");
 }
 

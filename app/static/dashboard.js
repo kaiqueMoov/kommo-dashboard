@@ -1,11 +1,19 @@
 let selectedSellerIds = new Set();
 let selectedCampaignNames = new Set();
 let selectedCarNames = new Set();
-let currentLeadsData = []; 
-let isLeadsExpanded = false; 
-const LEADS_LIMIT = 5; // Quantidade de leads visíveis por padrão (mude se quiser)
 
 const CURRENT_YEAR_START = "2026-01-01";
+const DEFAULT_VISIBLE_ROWS = 5;
+
+let expandedTables = {
+  campaigns: false,
+  sellers: false,
+  leads: false,
+};
+
+let currentCampaignsData = [];
+let currentSellersData = [];
+let currentLeadsData = [];
 
 function getSelectedSellerIds() {
   return Array.from(selectedSellerIds);
@@ -37,30 +45,6 @@ function setDefaultDates() {
   if (!endInput.value) {
     endInput.value = today;
   }
-}
-{
-  function renderCampaigns(rows) {
-  const tbody = document.getElementById("campaignsTable");
-  if (!tbody) return;
-
-  tbody.innerHTML = "";
-
-  rows.forEach((row) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${row.campaign_name ?? "Sem campanha"}</td>
-      <td>${row.total_leads ?? 0}</td>
-      <td>${row.replied_first_message ?? 0}</td>
-      <td>${row.sql_count ?? 0}</td>
-      <td>${row.won_count ?? 0}</td>
-      <td>${row.lost_count ?? 0}</td>
-      <td>${row.reply_rate ?? 0}%</td>
-      <td>${row.sql_rate ?? 0}%</td>
-      <td>${row.won_rate ?? 0}%</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
 }
 
 function updateSelectionInfo(elementId, selectedCount, singular, plural, emptyText) {
@@ -229,6 +213,23 @@ async function fetchJson(url) {
   return response.json();
 }
 
+function getVisibleRows(rows, tableKey) {
+  return expandedTables[tableKey] ? rows : rows.slice(0, DEFAULT_VISIBLE_ROWS);
+}
+
+function updateToggleButton(buttonId, rows, tableKey) {
+  const btn = document.getElementById(buttonId);
+  if (!btn) return;
+
+  if (rows.length <= DEFAULT_VISIBLE_ROWS) {
+    btn.style.display = "none";
+    return;
+  }
+
+  btn.style.display = "inline-flex";
+  btn.textContent = expandedTables[tableKey] ? "Ver menos" : "Ver mais";
+}
+
 function renderSummary(data) {
   document.getElementById("cardTotal").textContent = data.total_leads ?? 0;
   document.getElementById("cardReplied").textContent = data.replied_first_message ?? 0;
@@ -241,7 +242,10 @@ function renderSellers(rows) {
   const tbody = document.getElementById("sellersTable");
   tbody.innerHTML = "";
 
-  rows.forEach((row) => {
+  currentSellersData = rows;
+  const visibleRows = getVisibleRows(rows, "sellers");
+
+  visibleRows.forEach((row) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${row.seller_name ?? "Sem responsável"}</td>
@@ -252,6 +256,8 @@ function renderSellers(rows) {
     `;
     tbody.appendChild(tr);
   });
+
+  updateToggleButton("toggleSellersTable", rows, "sellers");
 }
 
 function renderSources(rows) {
@@ -268,17 +274,42 @@ function renderSources(rows) {
   });
 }
 
+function renderCampaigns(rows) {
+  const tbody = document.getElementById("campaignsTable");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  currentCampaignsData = rows;
+  const visibleRows = getVisibleRows(rows, "campaigns");
+
+  visibleRows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.campaign_name ?? "Sem campanha"}</td>
+      <td>${row.total_leads ?? 0}</td>
+      <td>${row.replied_first_message ?? 0}</td>
+      <td>${row.sql_count ?? 0}</td>
+      <td>${row.won_count ?? 0}</td>
+      <td>${row.lost_count ?? 0}</td>
+      <td>${row.reply_rate ?? 0}%</td>
+      <td>${row.sql_rate ?? 0}%</td>
+      <td>${row.won_rate ?? 0}%</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  updateToggleButton("toggleCampaignsTable", rows, "campaigns");
+}
+
 function renderLeads(rows) {
   const tbody = document.getElementById("leadsTable");
   tbody.innerHTML = "";
 
-  // Guarda os dados na variável global para usarmos no botão
   currentLeadsData = rows;
+  const visibleRows = getVisibleRows(rows, "leads");
 
-  // Se estiver expandido, mostra tudo. Se não, corta a array no limite.
-  const leadsToShow = isLeadsExpanded ? rows : rows.slice(0, LEADS_LIMIT);
-
-  leadsToShow.forEach((row) => {
+  visibleRows.forEach((row) => {
     const createdAt = row.created_at_kommo
       ? new Date(row.created_at_kommo).toLocaleString("pt-BR")
       : "-";
@@ -297,56 +328,7 @@ function renderLeads(rows) {
     tbody.appendChild(tr);
   });
 
-  // Chama a função que cria o botão após renderizar a tabela
-  renderShowMoreButton();
-}
-
-
-
-{
-  function renderShowMoreButton() {
-  let btnContainer = document.getElementById("toggleLeadsContainer");
-
-  // Se o container do botão ainda não existir, cria e insere depois da tabela
-  if (!btnContainer) {
-    const table = document.getElementById("leadsTable").closest("table");
-    btnContainer = document.createElement("div");
-    btnContainer.id = "toggleLeadsContainer";
-    btnContainer.style.textAlign = "center";
-    btnContainer.style.marginTop = "15px"; // Espaço entre a tabela e o botão
-    
-    table.parentNode.insertBefore(btnContainer, table.nextSibling);
-  }
-
-  // Limpa o botão anterior
-  btnContainer.innerHTML = "";
-
-  // Só cria o botão se houver mais leads do que o limite permitido
-  if (currentLeadsData.length > LEADS_LIMIT) {
-    const btn = document.createElement("button");
-    
-    // Adicione as classes de CSS que você já usa no seu site (ex: "btn btn-primary")
-    btn.className = "btn-ver-mais"; 
-    btn.style.padding = "8px 16px";
-    btn.style.cursor = "pointer";
-
-    // Define o texto dinamicamente
-    if (isLeadsExpanded) {
-      btn.textContent = "Esconder Leads";
-    } else {
-      const hiddenCount = currentLeadsData.length - LEADS_LIMIT;
-      btn.textContent = `Ver mais (${hiddenCount})`;
-    }
-
-    // Ação de clique: inverte o estado e renderiza novamente
-    btn.addEventListener("click", () => {
-      isLeadsExpanded = !isLeadsExpanded;
-      renderLeads(currentLeadsData);
-    });
-
-    btnContainer.appendChild(btn);
-  }
-}
+  updateToggleButton("toggleLeadsTable", rows, "leads");
 }
 
 function renderOptionList(containerId, rows, optionClass, valueKey, labelKey, selectedSet, clickHandler, skipValues = []) {
@@ -433,14 +415,14 @@ async function loadDashboard() {
       fetchJson(`/dashboard/campaigns${query}`),
     ]);
 
+    expandedTables.campaigns = false;
+    expandedTables.sellers = false;
+    expandedTables.leads = false;
+
     renderSummary(summary);
     renderSellers(sellers);
     renderSources(sources);
-    
-    // Volta a esconder a lista ao buscar novos dados
-    isLeadsExpanded = false; 
     renderLeads(leads);
-    
     renderCampaigns(campaigns);
   } catch (error) {
     console.error(error);
@@ -486,6 +468,21 @@ document.getElementById("clearCars").addEventListener("click", () => {
   selectedCarNames.clear();
   updateCarListUI();
   updateAllSelectionInfos();
+});
+
+document.getElementById("toggleCampaignsTable").addEventListener("click", () => {
+  expandedTables.campaigns = !expandedTables.campaigns;
+  renderCampaigns(currentCampaignsData);
+});
+
+document.getElementById("toggleSellersTable").addEventListener("click", () => {
+  expandedTables.sellers = !expandedTables.sellers;
+  renderSellers(currentSellersData);
+});
+
+document.getElementById("toggleLeadsTable").addEventListener("click", () => {
+  expandedTables.leads = !expandedTables.leads;
+  renderLeads(currentLeadsData);
 });
 
 async function initDashboard() {

@@ -16,72 +16,19 @@
           <div class="hero-badge">Painel de Controle</div>
           <h1>Moov Analytics</h1>
           <p class="hero-subtitle">
-            Acompanhe leads, desempenho comercial, campanhas, veículos de interesse
-            e evolução do funil em uma visão clara, organizada e profissional.
+            Acompanhe leads, desempenho comercial, campanhas e veículos de interesse
+            em uma visão clara, prática e profissional.
           </p>
         </div>
       </header>
 
-      <section class="panel panel-intro">
+      <section class="panel panel-intro compact-intro">
         <div class="section-header">
           <div>
-            <h2>Como usar este painel</h2>
+            <h2>Visão geral do painel</h2>
             <p class="section-description">
-              Utilize os filtros abaixo para localizar rapidamente vendedores, campanhas,
-              carros e leads específicos. Os indicadores e tabelas serão atualizados de acordo
-              com os critérios escolhidos.
+              Use os filtros para refinar a análise e clique em <strong>Ver mais</strong> nas tabelas para expandir os resultados.
             </p>
-          </div>
-        </div>
-
-        <div class="intro-grid">
-          <div class="intro-card">
-            <h3>Busca inteligente</h3>
-            <p>Pesquise por nome do lead, campanha, carro ou origem de captação.</p>
-          </div>
-
-          <div class="intro-card">
-            <h3>Filtro por período</h3>
-            <p>Defina data inicial e final para analisar apenas o recorte desejado.</p>
-          </div>
-
-          <div class="intro-card">
-            <h3>Seleção múltipla</h3>
-            <p>Escolha vários vendedores, campanhas e carros ao mesmo tempo.</p>
-          </div>
-          <section class="panel">
-  <div class="section-header">
-    <div>
-      <h2>Performance por campanha</h2>
-      <p class="section-description">
-        Compare volume, qualificação e conversão das campanhas para identificar quais geram mais resultado.
-      </p>
-    </div>
-  </div>
-
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Campanha</th>
-          <th>Leads</th>
-          <th>Respondeu</th>
-          <th>SQL</th>
-          <th>Ganhos</th>
-          <th>Perdidos</th>
-          <th>% Resposta</th>
-          <th>% SQL</th>
-          <th>% Ganho</th>
-        </tr>
-      </thead>
-      <tbody id="campaignsTable"></tbody>
-    </table>
-  </div>
-</section>
-
-          <div class="intro-card">
-            <h3>Visão de performance</h3>
-            <p>Compare resultados por vendedor, origem e distribuição dos leads recentes.</p>
           </div>
         </div>
       </section>
@@ -91,7 +38,7 @@
           <div>
             <h2>Filtros do painel</h2>
             <p class="section-description">
-              Ajuste os filtros para refinar a análise e visualizar exatamente o que precisa.
+              Ajuste os filtros para visualizar somente os dados que fazem sentido para sua análise.
             </p>
           </div>
         </div>
@@ -185,7 +132,7 @@
         <div class="card">
           <span>SQL</span>
           <strong id="cardSql">0</strong>
-          <small>Leads qualificados comercialmente para avanço no funil.</small>
+          <small>Leads qualificados comercialmente.</small>
         </div>
 
         <div class="card">
@@ -226,6 +173,10 @@
               <tbody id="sellersTable"></tbody>
             </table>
           </div>
+
+          <div class="table-actions">
+            <button type="button" class="see-more-btn" id="toggleSellersTable">Ver mais</button>
+          </div>
         </div>
 
         <div class="panel">
@@ -255,10 +206,43 @@
       <section class="panel">
         <div class="section-header">
           <div>
+            <h2>Performance por campanha</h2>
+            <p class="section-description">
+              Compare volume, qualificação e conversão das campanhas.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Campanha</th>
+                <th>Leads</th>
+                <th>Respondeu</th>
+                <th>SQL</th>
+                <th>Ganhos</th>
+                <th>Perdidos</th>
+                <th>% Resposta</th>
+                <th>% SQL</th>
+                <th>% Ganho</th>
+              </tr>
+            </thead>
+            <tbody id="campaignsTable"></tbody>
+          </table>
+        </div>
+
+        <div class="table-actions">
+          <button type="button" class="see-more-btn" id="toggleCampaignsTable">Ver mais</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-header">
+          <div>
             <h2>Leads recentes</h2>
             <p class="section-description">
-              Visualize os registros mais recentes com vendedor, pipeline, status,
-              campanha, carro e origem.
+              Visualize os registros mais recentes com vendedor, pipeline, status, campanha, carro e origem.
             </p>
           </div>
         </div>
@@ -279,6 +263,10 @@
             </thead>
             <tbody id="leadsTable"></tbody>
           </table>
+        </div>
+
+        <div class="table-actions">
+          <button type="button" class="see-more-btn" id="toggleLeadsTable">Ver mais</button>
         </div>
       </section>
     </main>

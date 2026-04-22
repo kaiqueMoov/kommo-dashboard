@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from datetime import datetime
 from urllib.parse import parse_qs
 
@@ -10,7 +11,6 @@ from app.core.lead_rules import LOST_STATUS_IDS, SQL_STATUS_IDS, WON_STATUS_IDS
 from app.integrations.kommo_client import KommoClient
 from app.models.lead import Lead
 from app.models.user import User
-import unicodedata
 
 router = APIRouter()
 
@@ -22,8 +22,53 @@ BLOCKED_USER_NAMES = {
     "gabriela macena",
 }
 
+CAR_PATTERNS = [
+    (["song plus", "songpro", "song pro"], "Song Plus"),
+    (["t-cross", "tcross"], "T-Cross"),
+    (["tera"], "Tera"),
+    (["kicks"], "Kicks"),
+    (["boreal"], "Boreal"),
+    (["haval h6", "h6 hev2", "h6"], "Haval H6"),
+    (["hilux"], "Hilux"),
+    (["volvo ex30", "ex30"], "Volvo EX30"),
+    (["bmw x1", "x1 m sport", "x1"], "BMW X1"),
+    (["compass"], "Compass"),
+    (["renegade"], "Renegade"),
+    (["argo"], "Argo"),
+    (["fiorino"], "Fiorino"),
+    (["xc60"], "Volvo XC60"),
+    (["dolphin"], "BYD Dolphin"),
+    (["dolphin mini"], "BYD Dolphin Mini"),
+    (["song pro"], "BYD Song Pro"),
+    (["scudo"], "Scudo"),
+    (["fastback"], "Fastback"),
+    (["nivus"], "Nivus"),
+    (["creta"], "Creta"),
+    (["pulse"], "Pulse"),
+    (["tracker"], "Tracker"),
+    (["corolla cross"], "Corolla Cross"),
+]
 
-def normalize_person_name(value: str | None) -> str:
+GENERIC_CAMPAIGN_TAGS = {
+    "lead finalizado",
+    "sql",
+    "novo lead",
+    "novo lead trafego pago",
+    "mensagem enviada",
+    "respondeu a primeira mensagem",
+    "orcamento enviado",
+    "orçamento enviado",
+    "em negociacao",
+    "em negociação",
+    "aguardando documentos",
+    "subir ficha",
+    "em analise",
+    "em análise",
+    "venda ganha",
+}
+
+
+def normalize_text(value: str | None) -> str:
     if not value:
         return ""
 
@@ -32,26 +77,57 @@ def normalize_person_name(value: str | None) -> str:
     return value.strip().lower()
 
 
+def normalize_person_name(value: str | None) -> str:
+    return normalize_text(value)
+
+
+def clean_extracted_value(value) -> str | None:
+    if value is None:
+        return None
+
+    if isinstance(value, dict):
+        value = value.get("value")
+
+    value = str(value).strip()
+    if not value:
+        return None
+
+    normalized = normalize_text(value)
+    if normalized in {"none", "null", "sem campanha", "sem carro", "-", "--", "n/a"}:
+        return None
+
+    return value
+
+
 def has_finalized_tag(tag_names: list[str]) -> bool:
-    normalized_tags = [normalize_person_name(tag) for tag in tag_names]
+    normalized_tags = [normalize_text(tag) for tag in tag_names]
     return "lead finalizado" in normalized_tags
+
+
+def first_non_empty(*values) -> str | None:
+    for value in values:
+        cleaned = clean_extracted_value(value)
+        if cleaned:
+            return cleaned
+    return None
 
 
 def get_custom_field_value(custom_fields: list[dict] | None, *field_names: str) -> str | None:
     if not custom_fields:
         return None
 
-    normalized_names = [name.strip().lower() for name in field_names]
+    normalized_names = {normalize_text(name) for name in field_names}
 
     for field in custom_fields:
-        current_name = (field.get("field_name") or field.get("name") or "").strip().lower()
+        current_name = normalize_text(field.get("field_name") or field.get("name"))
         if current_name in normalized_names:
             values = field.get("values", [])
             if values:
                 first = values[0]
                 if isinstance(first, dict):
-                    return first.get("value")
-                return str(first)
+                    return clean_extracted_value(first.get("value"))
+                return clean_extracted_value(first)
+
     return None
 
 
@@ -60,46 +136,78 @@ def get_tag_names(item: dict) -> list[str]:
     return [str(tag.get("name", "")).strip() for tag in tags if tag.get("name")]
 
 
+def extract_known_car(text: str | None) -> str | None:
+    normalized = normalize_text(text)
+    if not normalized:
+        return None
+
+    for aliases, label in CAR_PATTERNS:
+        for alias in aliases:
+            if normalize_text(alias) in normalized:
+                return label
+
+    return None
+
+
 def extract_car_from_tags(tag_names: list[str]) -> str | None:
-    known_cars = [
-        "song plus",
-        "t-cross",
-        "tera",
-        "kicks",
-        "boreal",
-        "haval",
-        "hilux",
-        "volvo",
-        "bmw x1",
-        "compass",
-        "renegade",
-        "argo",
-        "fiorino",
-        "xc60",
-        "ex30",
-    ]
+    for tag in tag_names:
+        found = extract_known_car(tag)
+        if found:
+            return found
+    return None
 
-    joined = " | ".join(tag_names).lower()
 
-    for car in known_cars:
-        if car in joined:
-            return car.title()
+def extract_car_from_name(name: str | None) -> str | None:
+    return extract_known_car(name)
+
+
+def extract_campaign_from_tags(tag_names: list[str]) -> str | None:
+    for tag in tag_names:
+        cleaned = clean_extracted_value(tag)
+        if not cleaned:
+            continue
+
+        normalized = normalize_text(cleaned)
+
+        if normalized in GENERIC_CAMPAIGN_TAGS:
+            continue
+
+        if extract_known_car(cleaned):
+            continue
+
+        if any(word in normalized for word in ["facebook", "instagram", "google", "meta", "tiktok", "campanha", "ads"]):
+            return cleaned
 
     return None
 
 
 def extract_campaign_from_name(name: str | None) -> str | None:
-    if not name:
+    cleaned = clean_extracted_value(name)
+    if not cleaned:
         return None
 
-    lowered = name.lower()
+    normalized = normalize_text(cleaned)
 
-    if lowered.startswith("facebook"):
-        return name.strip()
-    if lowered.startswith("instagram"):
-        return name.strip()
-    if lowered.startswith("google"):
-        return name.strip()
+    if normalized.startswith(("facebook", "instagram", "google", "meta", "tiktok")):
+        return cleaned
+
+    if any(word in normalized for word in ["campanha", "ads", "trafego", "tráfego"]):
+        return cleaned
+
+    return None
+
+
+def extract_lead_source_from_name(name: str | None) -> str | None:
+    normalized = normalize_text(name)
+
+    if normalized.startswith("facebook") or "facebook" in normalized or "meta" in normalized:
+        return "Facebook"
+    if normalized.startswith("instagram") or "instagram" in normalized:
+        return "Instagram"
+    if normalized.startswith("google") or "google" in normalized:
+        return "Google"
+    if "tiktok" in normalized:
+        return "TikTok"
 
     return None
 
@@ -113,61 +221,84 @@ def ts_to_dt(value):
 def apply_lead_data(lead: Lead, item: dict) -> None:
     custom_fields = item.get("custom_fields_values") or item.get("custom_fields") or []
     tag_names = get_tag_names(item)
-    lead.is_finalized = has_finalized_tag(tag_names)
 
+    lead.is_finalized = has_finalized_tag(tag_names)
 
     lead.name = item.get("name")
     lead.kommo_pipeline_id = item.get("pipeline_id")
     lead.kommo_status_id = item.get("status_id")
     lead.responsible_user_id = item.get("responsible_user_id")
 
-    lead.car_name = (
+    utm_source = get_custom_field_value(custom_fields, "UTM_SOURCE", "utm_source")
+    utm_medium = get_custom_field_value(custom_fields, "UTM_MEDIUM", "utm_medium")
+    utm_campaign = get_custom_field_value(custom_fields, "UTM_CAMPAIGN", "utm_campaign")
+    utm_content = get_custom_field_value(custom_fields, "UTM_CONTENT", "utm_content")
+    utm_term = get_custom_field_value(custom_fields, "UTM_TERM", "utm_term")
+
+    lead.car_name = first_non_empty(
         get_custom_field_value(
             custom_fields,
             "carro_interesse",
+            "carro de interesse",
+            "veiculo de interesse",
+            "veículo de interesse",
             "carro",
             "veiculo",
             "veículo",
             "modelo",
             "modelo do carro",
-        )
-        or extract_car_from_tags(tag_names)
+            "modelo desejado",
+            "veiculo desejado",
+            "veículo desejado",
+            "carro desejado",
+            "produto",
+            "interesse",
+        ),
+        extract_car_from_tags(tag_names),
+        extract_car_from_name(item.get("name")),
+        lead.car_name,
     )
 
-    lead.campaign_name = (
+    lead.campaign_name = first_non_empty(
         get_custom_field_value(
             custom_fields,
             "nome_campanha",
-            "campanha",
             "nome da campanha",
+            "campanha",
             "campaign",
-        )
-        or extract_campaign_from_name(item.get("name"))
+            "campanha meta",
+            "campanha google",
+            "anuncio",
+            "anúncio",
+            "ad name",
+            "ads",
+        ),
+        utm_campaign,
+        extract_campaign_from_tags(tag_names),
+        extract_campaign_from_name(item.get("name")),
+        lead.campaign_name,
     )
 
-    lead.lead_source = get_custom_field_value(
-        custom_fields,
-        "origem_captacao",
-        "origem",
-        "origem da captação",
-        "origem do lead",
-        "source",
+    lead.lead_source = first_non_empty(
+        get_custom_field_value(
+            custom_fields,
+            "origem_captacao",
+            "origem",
+            "origem da captação",
+            "origem do lead",
+            "source",
+            "canal",
+        ),
+        utm_source,
+        extract_lead_source_from_name(item.get("name")),
+        lead.lead_source,
     )
 
-    if not lead.lead_source and lead.name:
-        lead_name_lower = lead.name.lower()
-        if lead_name_lower.startswith("facebook"):
-            lead.lead_source = "Facebook"
-        elif lead_name_lower.startswith("instagram"):
-            lead.lead_source = "Instagram"
-        elif lead_name_lower.startswith("google"):
-            lead.lead_source = "Google"
-
-    lead.utm_source = get_custom_field_value(custom_fields, "UTM_SOURCE", "utm_source")
-    lead.utm_medium = get_custom_field_value(custom_fields, "UTM_MEDIUM", "utm_medium")
-    lead.utm_campaign = get_custom_field_value(custom_fields, "UTM_CAMPAIGN", "utm_campaign")
-    lead.utm_content = get_custom_field_value(custom_fields, "UTM_CONTENT", "utm_content")
-    lead.utm_term = get_custom_field_value(custom_fields, "UTM_TERM", "utm_term")
+    lead.utm_source = utm_source
+    lead.utm_medium = utm_medium
+    lead.utm_campaign = utm_campaign
+    lead.utm_content = utm_content
+    lead.utm_term = utm_term
 
     lead.created_at_kommo = ts_to_dt(item.get("created_at") or item.get("date_create"))
     lead.updated_at_kommo = ts_to_dt(item.get("updated_at") or item.get("last_modified"))
@@ -180,7 +311,6 @@ def apply_lead_data(lead: Lead, item: dict) -> None:
 
     if lead.kommo_status_id in LOST_STATUS_IDS and not lead.lost_at:
         lead.lost_at = ts_to_dt(item.get("closed_at") or item.get("updated_at") or item.get("last_modified"))
-     
 
 
 async def sync_single_lead(db: Session, client: KommoClient, lead_id: int) -> dict:
@@ -280,6 +410,7 @@ async def sync_leads(db: Session = Depends(get_db)):
     total_found = 0
     page = 1
     limit = 250
+    details_fetched = 0
 
     while True:
         data = await client.get_leads(page=page, limit=limit)
@@ -302,6 +433,15 @@ async def sync_leads(db: Session = Depends(get_db)):
                 db.add(lead)
 
             apply_lead_data(lead, item)
+
+            needs_detail = not lead.car_name or not lead.campaign_name or not lead.lead_source
+
+            if needs_detail:
+                detail = await client.get_lead_by_id(item["id"])
+                if "status_code" not in detail:
+                    apply_lead_data(lead, detail)
+                    details_fetched += 1
+
             total_saved += 1
 
         db.commit()
@@ -315,6 +455,7 @@ async def sync_leads(db: Session = Depends(get_db)):
         "status": "ok",
         "leads_found": total_found,
         "leads_saved": total_saved,
+        "details_fetched": details_fetched,
         "pages_processed": page,
     }
 

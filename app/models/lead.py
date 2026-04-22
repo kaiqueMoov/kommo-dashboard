@@ -2,8 +2,11 @@ from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
-
+from sqlalchemy import Boolean
 from app.models.base import Base
+
+
+
 
 
 class Lead(Base):
@@ -13,6 +16,8 @@ class Lead(Base):
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_finalized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
 
     kommo_pipeline_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     kommo_status_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -44,3 +49,5 @@ class Lead(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+  

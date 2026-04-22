@@ -70,6 +70,16 @@
               <small>Define o fim do período analisado.</small>
             </div>
 
+            <div class="filter-group">
+              <label for="finalizedFilter">Lead finalizado</label>
+              <select id="finalizedFilter">
+                <option value="">Todos</option>
+                <option value="true">Somente finalizados</option>
+                <option value="false">Somente não finalizados</option>
+              </select>
+              <small>Filtra pela tag lead finalizado da Kommo.</small>
+            </div>
+
             <div class="filter-actions">
               <button id="applyFilters">Aplicar filtros</button>
               <small>Atualiza os indicadores e tabelas do painel.</small>
@@ -146,6 +156,18 @@
           <strong id="cardLost">0</strong>
           <small>Negócios encerrados sem conversão.</small>
         </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-header">
+          <div>
+            <h2>Indicadores de conversão</h2>
+            <p class="section-description">
+              Veja as taxas de avanço do funil e os destaques de performance do período filtrado.
+            </p>
+          </div>
+        </div>
+        <div class="conversion-cards" id="conversionCards"></div>
       </section>
 
       <section class="grid">
@@ -278,23 +300,23 @@
       </section>
 
       <section class="panel">
-  <div class="section-header">
-    <div>
-      <h2>Etapas por funil</h2>
-      <p class="section-description">
-        Acompanhe em qual etapa os leads estão distribuídos dentro de cada operação.
-      </p>
-    </div>
-  </div>
+        <div class="section-header">
+          <div>
+            <h2>Etapas por funil</h2>
+            <p class="section-description">
+              Acompanhe em qual etapa os leads estão distribuídos dentro de cada operação.
+            </p>
+          </div>
+        </div>
+        <div class="funnel-stage-boards" id="funnelStageBoards"></div>
+      </section>
 
-  <div class="funnel-stage-boards" id="funnelStageBoards"></div>
-</section>
       <section class="panel">
         <div class="section-header">
           <div>
             <h2>Leads recentes</h2>
             <p class="section-description">
-              Visualize os registros mais recentes com vendedor, pipeline, status, campanha, carro e origem.
+              Visualize os registros mais recentes com vendedor, funil, pipeline, status, finalização, campanha, carro e origem.
             </p>
           </div>
         </div>
@@ -308,6 +330,7 @@
                 <th>Funil</th>
                 <th>Pipeline</th>
                 <th>Status</th>
+                <th>Finalizado</th>
                 <th>Campanha</th>
                 <th>Carro</th>
                 <th>Origem</th>
@@ -322,6 +345,27 @@
           <button type="button" class="see-more-btn" id="toggleLeadsTable">Ver mais</button>
         </div>
       </section>
+
+      <div class="lead-drawer-overlay" id="leadDrawerOverlay"></div>
+
+      <aside class="lead-drawer" id="leadDrawer">
+        <div class="lead-drawer-header">
+          <div>
+            <h3 id="leadDrawerTitle">Detalhes do lead</h3>
+            <p id="leadDrawerSubtitle">Linha do tempo e informações do lead</p>
+          </div>
+          <button type="button" class="lead-drawer-close" id="closeLeadDrawer">×</button>
+        </div>
+
+        <div class="lead-drawer-body">
+          <div class="lead-detail-grid" id="leadDetailGrid"></div>
+
+          <div class="lead-timeline-section">
+            <h4>Linha do tempo</h4>
+            <div class="lead-timeline" id="leadTimeline"></div>
+          </div>
+        </div>
+      </aside>
     </main>
   </div>
 

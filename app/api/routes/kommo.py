@@ -10,8 +10,31 @@ from app.core.lead_rules import LOST_STATUS_IDS, SQL_STATUS_IDS, WON_STATUS_IDS
 from app.integrations.kommo_client import KommoClient
 from app.models.lead import Lead
 from app.models.user import User
+import unicodedata
 
 router = APIRouter()
+
+BLOCKED_USER_NAMES = {
+    "pedro lunardini",
+    "moov",
+    "joao",
+    "daniela santos",
+    "gabriela macena",
+}
+
+
+def normalize_person_name(value: str | None) -> str:
+    if not value:
+        return ""
+
+    value = unicodedata.normalize("NFD", str(value))
+    value = "".join(ch for ch in value if unicodedata.category(ch) != "Mn")
+    return value.strip().lower()
+
+
+def has_finalized_tag(tag_names: list[str]) -> bool:
+    normalized_tags = [normalize_person_name(tag) for tag in tag_names]
+    return "lead finalizado" in normalized_tags
 
 
 def get_custom_field_value(custom_fields: list[dict] | None, *field_names: str) -> str | None:
@@ -90,6 +113,8 @@ def ts_to_dt(value):
 def apply_lead_data(lead: Lead, item: dict) -> None:
     custom_fields = item.get("custom_fields_values") or item.get("custom_fields") or []
     tag_names = get_tag_names(item)
+    lead.is_finalized = has_finalized_tag(tag_names)
+
 
     lead.name = item.get("name")
     lead.kommo_pipeline_id = item.get("pipeline_id")
@@ -155,6 +180,7 @@ def apply_lead_data(lead: Lead, item: dict) -> None:
 
     if lead.kommo_status_id in LOST_STATUS_IDS and not lead.lost_at:
         lead.lost_at = ts_to_dt(item.get("closed_at") or item.get("updated_at") or item.get("last_modified"))
+     
 
 
 async def sync_single_lead(db: Session, client: KommoClient, lead_id: int) -> dict:
@@ -209,8 +235,14 @@ async def sync_users(db: Session = Depends(get_db)):
 
     users_data = data.get("_embedded", {}).get("users", [])
     total_saved = 0
+    total_blocked = 0
 
     for item in users_data:
+        current_name = normalize_person_name(item.get("name"))
+        if current_name in BLOCKED_USER_NAMES:
+            total_blocked += 1
+            continue
+
         user = db.get(User, item["id"])
 
         if not user:
@@ -236,6 +268,7 @@ async def sync_users(db: Session = Depends(get_db)):
         "status": "ok",
         "users_found": len(users_data),
         "users_saved": total_saved,
+        "users_blocked": total_blocked,
     }
 
 

@@ -23,7 +23,10 @@ BLOCKED_USER_NAMES = {
 }
 
 CAR_PATTERNS = [
-    (["song plus", "songpro", "song pro"], "Song Plus"),
+    (["song plus", "songplus"], "Song Plus"),
+    (["song pro", "songpro"], "Song Pro"),
+    (["dolphin mini"], "Dolphin Mini"),
+    (["dolphin"], "Dolphin"),
     (["t-cross", "tcross"], "T-Cross"),
     (["tera"], "Tera"),
     (["kicks"], "Kicks"),
@@ -37,9 +40,6 @@ CAR_PATTERNS = [
     (["argo"], "Argo"),
     (["fiorino"], "Fiorino"),
     (["xc60"], "Volvo XC60"),
-    (["dolphin"], "BYD Dolphin"),
-    (["dolphin mini"], "BYD Dolphin Mini"),
-    (["song pro"], "BYD Song Pro"),
     (["scudo"], "Scudo"),
     (["fastback"], "Fastback"),
     (["nivus"], "Nivus"),
@@ -93,15 +93,10 @@ def clean_extracted_value(value) -> str | None:
         return None
 
     normalized = normalize_text(value)
-    if normalized in {"none", "null", "sem campanha", "sem carro", "-", "--", "n/a"}:
+    if normalized in {"none", "null", "sem campanha", "sem carro", "sem origem", "-", "--", "n/a"}:
         return None
 
     return value
-
-
-def has_finalized_tag(tag_names: list[str]) -> bool:
-    normalized_tags = [normalize_text(tag) for tag in tag_names]
-    return "lead finalizado" in normalized_tags
 
 
 def first_non_empty(*values) -> str | None:
@@ -110,6 +105,11 @@ def first_non_empty(*values) -> str | None:
         if cleaned:
             return cleaned
     return None
+
+
+def has_finalized_tag(tag_names: list[str]) -> bool:
+    normalized_tags = [normalize_text(tag) for tag in tag_names]
+    return "lead finalizado" in normalized_tags
 
 
 def get_custom_field_value(custom_fields: list[dict] | None, *field_names: str) -> str | None:
@@ -175,7 +175,7 @@ def extract_campaign_from_tags(tag_names: list[str]) -> str | None:
         if extract_known_car(cleaned):
             continue
 
-        if any(word in normalized for word in ["facebook", "instagram", "google", "meta", "tiktok", "campanha", "ads"]):
+        if any(word in normalized for word in ["facebook", "instagram", "google", "meta", "tiktok", "campanha", "ads", "anuncio", "anúncio"]):
             return cleaned
 
     return None
@@ -191,7 +191,7 @@ def extract_campaign_from_name(name: str | None) -> str | None:
     if normalized.startswith(("facebook", "instagram", "google", "meta", "tiktok")):
         return cleaned
 
-    if any(word in normalized for word in ["campanha", "ads", "trafego", "tráfego"]):
+    if any(word in normalized for word in ["campanha", "ads", "trafego", "tráfego", "anuncio", "anúncio"]):
         return cleaned
 
     return None

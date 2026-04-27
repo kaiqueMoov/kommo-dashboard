@@ -966,6 +966,79 @@ function pickBestPerformer(rows, labelKey) {
   };
 }
 
+const LOGIN_EMAIL = "moovanalytics@moovconsult.com.br";
+const LOGIN_PASSWORD = "Moov2026@";
+
+const loginOverlay = document.getElementById("loginOverlay");
+const loginForm = document.getElementById("loginForm");
+const loginEmail = document.getElementById("loginEmail");
+const loginPassword = document.getElementById("loginPassword");
+const loginError = document.getElementById("loginError");
+const logoutBtn = document.getElementById("logoutBtn");
+
+function showLogin() {
+  loginOverlay.classList.remove("hidden");
+}
+
+function hideLogin() {
+  loginOverlay.classList.add("hidden");
+}
+
+function isAuthenticated() {
+  return localStorage.getItem("moovAuth") === "true";
+}
+
+function saveAuth() {
+  localStorage.setItem("moovAuth", "true");
+}
+
+function clearAuth() {
+  localStorage.removeItem("moovAuth");
+}
+
+function validateLogin(email, password) {
+  return (
+    email.trim().toLowerCase() === LOGIN_EMAIL.toLowerCase() &&
+    password === LOGIN_PASSWORD
+  );
+}
+
+function initializeLogin() {
+  if (isAuthenticated()) {
+    hideLogin();
+  } else {
+    showLogin();
+  }
+
+  if (loginForm) {
+    loginForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const email = loginEmail.value;
+      const password = loginPassword.value;
+
+      if (validateLogin(email, password)) {
+        saveAuth();
+        loginError.classList.add("hidden");
+        hideLogin();
+      } else {
+        loginError.classList.remove("hidden");
+        loginPassword.value = "";
+        loginPassword.focus();
+      }
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", function () {
+      clearAuth();
+      showLogin();
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", initializeLogin);
+
 function renderConversionCards(summary, sellers, campaigns, cars) {
   const container = document.getElementById("conversionCards");
   if (!container) return;

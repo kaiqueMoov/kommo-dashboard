@@ -213,10 +213,11 @@ def extract_lead_source_from_name(name: str | None) -> str | None:
 
 
 def ts_to_dt(value):
-    
     if not value:
         return None
     return datetime.fromtimestamp(int(value))
+
+
 def ensure_valid_responsible_user_id(db: Session, lead: Lead) -> None:
     if not lead.responsible_user_id:
         return
@@ -335,7 +336,14 @@ async def sync_single_lead(db: Session, client: KommoClient, lead_id: int) -> di
     apply_lead_data(lead, data)
     ensure_valid_responsible_user_id(db, lead)
 
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
     return {"id": lead_id, "status": "synced"}
+
 
 def extract_lead_ids_from_form(encoded_form: str) -> list[int]:
     parsed = parse_qs(encoded_form, keep_blank_values=True)
@@ -474,6 +482,7 @@ async def sync_leads(db: Session = Depends(get_db)):
         "pages_processed": page,
     }
 
+
 @router.post("/webhooks")
 async def kommo_webhooks(request: Request, db: Session = Depends(get_db)):
     raw_body = (await request.body()).decode("utf-8", errors="ignore")
@@ -496,8 +505,6 @@ async def kommo_webhooks(request: Request, db: Session = Depends(get_db)):
             errors.append({"lead_id": lead_id, "error": result})
         else:
             synced.append(lead_id)
-
-    db.commit()
 
     return {
         "status": "ok",

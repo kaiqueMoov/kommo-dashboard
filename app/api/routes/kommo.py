@@ -213,9 +213,17 @@ def extract_lead_source_from_name(name: str | None) -> str | None:
 
 
 def ts_to_dt(value):
+    
     if not value:
         return None
     return datetime.fromtimestamp(int(value))
+def ensure_valid_responsible_user_id(db: Session, lead: Lead) -> None:
+    if not lead.responsible_user_id:
+        return
+
+    existing_user = db.get(User, lead.responsible_user_id)
+    if not existing_user:
+        lead.responsible_user_id = None
 
 
 def apply_lead_data(lead: Lead, item: dict) -> None:
@@ -325,8 +333,9 @@ async def sync_single_lead(db: Session, client: KommoClient, lead_id: int) -> di
         db.add(lead)
 
     apply_lead_data(lead, data)
-    return {"id": lead_id, "status": "synced"}
+    ensure_valid_responsible_user_id(db, lead)
 
+    return {"id": lead_id, "status": "synced"}
 
 def extract_lead_ids_from_form(encoded_form: str) -> list[int]:
     parsed = parse_qs(encoded_form, keep_blank_values=True)
@@ -433,6 +442,7 @@ async def sync_leads(db: Session = Depends(get_db)):
                 db.add(lead)
 
             apply_lead_data(lead, item)
+            ensure_valid_responsible_user_id(db, lead)
 
             needs_detail = not lead.car_name or not lead.campaign_name or not lead.lead_source
 
@@ -440,11 +450,16 @@ async def sync_leads(db: Session = Depends(get_db)):
                 detail = await client.get_lead_by_id(item["id"])
                 if "status_code" not in detail:
                     apply_lead_data(lead, detail)
+                    ensure_valid_responsible_user_id(db, lead)
                     details_fetched += 1
 
             total_saved += 1
 
-        db.commit()
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
 
         if len(leads_data) < limit:
             break
@@ -458,7 +473,6 @@ async def sync_leads(db: Session = Depends(get_db)):
         "details_fetched": details_fetched,
         "pages_processed": page,
     }
-
 
 @router.post("/webhooks")
 async def kommo_webhooks(request: Request, db: Session = Depends(get_db)):

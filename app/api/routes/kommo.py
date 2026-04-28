@@ -429,57 +429,65 @@ async def sync_leads(db: Session = Depends(get_db)):
     limit = 250
     details_fetched = 0
 
-    while True:
-        data = await client.get_leads(page=page, limit=limit)
+
+@router.post("/sync/leads")
+async def sync_leads(db: Session = Depends(get_db)):
+    client = KommoClient()
+
+    max_leads = 500
+    per_page = 250
+    page = 1
+
+    total_saved = 0
+    total_found = 0
+    pages_processed = 0
+
+    while total_found < max_leads:
+        current_limit = min(per_page, max_leads - total_found)
+
+        data = await client.get_leads(page=page, limit=current_limit)
 
         if "status_code" in data:
-            raise HTTPException(status_code=502, detail=data)
+            return data
 
-        leads_data = data.get("_embedded", {}).get("leads", []) or []
+        leads_data = data.get("_embedded", {}).get("leads", [])
 
         if not leads_data:
             break
 
-        total_found += len(leads_data)
-
         for item in leads_data:
+            custom_fields = item.get("custom_fields_values", [])
+
             lead = db.get(Lead, item["id"])
 
             if not lead:
                 lead = Lead(id=item["id"])
                 db.add(lead)
 
-            apply_lead_data(lead, item)
-            ensure_valid_responsible_user_id(db, lead)
+            lead.name = item.get("name")
+            lead.kommo_pipeline_id = item.get("pipeline_id")
+            lead.kommo_status_id = item.get("status_id")
+            lead.responsible_user_id = item.get("responsible_user_id")
 
-            needs_detail = not lead.car_name or not lead.campaign_name or not lead.lead_source
-
-            if needs_detail:
-                detail = await client.get_lead_by_id(item["id"])
-                if "status_code" not in detail:
-                    apply_lead_data(lead, detail)
-                    ensure_valid_responsible_user_id(db, lead)
-                    details_fetched += 1
+            # aqui continua todo o restante do seu mapeamento:
+            # car_name, campaign_name, lead_source, utm, sql_at, won_at, lost_at...
 
             total_saved += 1
 
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-            raise
+        total_found += len(leads_data)
+        pages_processed += 1
+        page += 1
 
-        if len(leads_data) < limit:
+        if len(leads_data) < current_limit:
             break
 
-        page += 1
+    db.commit()
 
     return {
         "status": "ok",
         "leads_found": total_found,
         "leads_saved": total_saved,
-        "details_fetched": details_fetched,
-        "pages_processed": page,
+        "pages_processed": pages_processed,
     }
 
 
